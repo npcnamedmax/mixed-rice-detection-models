@@ -175,7 +175,6 @@ class RTDETRValidator(DetectionValidator):
             preds = [preds, None]
 
         bs, _, nd = preds[0].shape
-        print("IN VAL NC IS WHAT " , self.nc)
         nc = self.nc
         bboxes, scores, masses = preds[0].split((4, nd - 4 - nc, nc), dim=-1)
         bboxes *= self.args.imgsz

@@ -947,7 +947,7 @@ class Metric(SimpleClass):
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return class-aware result, p[i], r[i], ap50[i], ap[i]."""
-        return self.p[i], self.r[i], self.ap50[i], self.ap[i]
+        return self.p[i], self.r[i], self.ap50[i], self.ap[i], 0.0
 
     @property
     def maps(self) -> np.ndarray:
@@ -1136,7 +1136,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
             # If mAP is good, focus on Mass.
             # We start with a base of 10.0 so these models are always "Better" than bad-detection models
             # We ADD (1 - Error) because we want Error to be small.
-            return 10.0 + (1.0 - self.mass_mape)
+            return 10.0 + (1 / (1 + self.mass_mape))
 
     @property
     def ap_class_index(self) -> list:
