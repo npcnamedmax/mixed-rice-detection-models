@@ -302,7 +302,7 @@ class v8DetectionLoss:
             mass_mask = target_mass > 0 # checks if theres any invalid/missing mass labels
 
             if mass_mask.sum() > 0:
-                pred_safe = pred_mass[mass_mask].clamp(min=0)
+                pred_safe = pred_mass[mass_mask].relu().clamp(min=1e-6)
                 
                 log_target = torch.log1p(target_mass[mass_mask])
                 # real_mass = torch.expm1(raw_output)
