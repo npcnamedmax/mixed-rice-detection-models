@@ -323,7 +323,7 @@ class v8DetectionLoss:
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
-        loss[3] *= 0.1
+        loss[3] *= 0.2
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
