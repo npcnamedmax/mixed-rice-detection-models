@@ -959,7 +959,7 @@ class Metric(SimpleClass):
 
     def fitness(self) -> float:
         """Return model fitness."""
-        # Weights for [P, R, mAP@0.5, mAP@0.5:0.95, MassMAPE]
+        # Weights for [P, R, mAP@0.5, mAP@0.5:0.95]
         # We set weight for MassMAPE to 0.0 here because we handle it manually below
         w = [0.0, 0.0, 0.0, 1.0] 
         
@@ -1128,7 +1128,9 @@ class DetMetrics(SimpleClass, DataExportMixin):
         """Return the fitness of box object."""
         # Calculate standard mAP score
         res = self.box.fitness()
+        return res
         #print("MASS MAAPE HERE:   " , self.mass_mape)
+        '''
         # Conditional Logic
         if res < 0.7: # If mAP is below 0.5
             return res # Return just the mAP (focus on learning detection)
@@ -1137,6 +1139,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
             # We start with a base of 10.0 so these models are always "Better" than bad-detection models
             # We ADD (1 - Error) because we want Error to be small.
             return 10.0 + (1 / (1.0 + self.mass_mape))
+        '''
 
     @property
     def ap_class_index(self) -> list:
