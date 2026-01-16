@@ -475,6 +475,10 @@ class BaseTrainer:
             if self.args.val or final_epoch or self.stopper.possible_stop or self.stop:
                 self._clear_memory(threshold=0.5)  # prevent VRAM spike
                 self.metrics, self.fitness = self.validate()
+                print(f"\n[DEBUG] Epoch {epoch+1} Fitness Check:")
+                print(f"   > Calculated Fitness: {self.fitness}")
+                print(f"   > Current Best:       {self.best_fitness}")
+                print(f"   > Is Improved?        {self.fitness > (self.best_fitness or 0.0)}")
 
             # NaN recovery
             if self._handle_nan_recovery(epoch):
