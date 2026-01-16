@@ -255,10 +255,10 @@ class DetectionValidator(BaseValidator):
         """
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
-        results = self.metrics.results_dict
-        #self.metrics.mass_mape
+        keys = self.metrics.keys + ["fitness"]
+        vals = self.metrics.mean_results() + [self.metrics.fitness]
+        results = dict(zip(keys, vals))
         results['metrics/mass_mape'] = self.mass_mape 
-        
         return results
 
     def print_results(self) -> None:
