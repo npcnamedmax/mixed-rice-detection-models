@@ -876,7 +876,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
-        self.mass_mape = 0
+        
 
     @property
     def ap50(self) -> np.ndarray | list:
@@ -961,19 +961,13 @@ class Metric(SimpleClass):
         """Return model fitness."""
         # Weights for [P, R, mAP@0.5, mAP@0.5:0.95, MassMAPE]
         # We set weight for MassMAPE to 0.0 here because we handle it manually below
-        w = [0.0, 0.0, 0.0, 1.0, 0.0] 
+        w = [0.0, 0.0, 0.0, 1.0] 
         
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         # Conditional Logic
-        if res < 0.7: # If mAP is below 0.5
-            return res # Return just the mAP (focus on learning detection)
-        else:
-            # If mAP is good, focus on Mass.
-            # We start with a base of 10.0 so these models are always "Better" than bad-detection models
-            # We ADD (1 - Error) because we want Error to be small.
-            return 10.0 + (1.0 - self.mass_mape)
+        return res
 
     def update(self, results: tuple):
         """Update the evaluation metrics with a new set of results.
@@ -1062,6 +1056,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         self.nt_per_class = None
         self.nt_per_image = None
+        self.mass_mape = 0
 
     def update_stats(self, stat: dict[str, Any]) -> None:
         """Update statistics by appending new values to existing stat collections.
@@ -1131,7 +1126,17 @@ class DetMetrics(SimpleClass, DataExportMixin):
     @property
     def fitness(self) -> float:
         """Return the fitness of box object."""
-        return self.box.fitness()
+        # Calculate standard mAP score
+        res = self.box.filter()
+        #print("MASS MAAPE HERE:   " , self.mass_mape)
+        # Conditional Logic
+        if res < 0.7: # If mAP is below 0.5
+            return res # Return just the mAP (focus on learning detection)
+        else:
+            # If mAP is good, focus on Mass.
+            # We start with a base of 10.0 so these models are always "Better" than bad-detection models
+            # We ADD (1 - Error) because we want Error to be small.
+            return 10.0 + (1.0 - self.mass_mape)
 
     @property
     def ap_class_index(self) -> list:
