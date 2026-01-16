@@ -1056,7 +1056,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         self.nt_per_class = None
         self.nt_per_image = None
-        self.mass_mape = 0
+        self.mass_mape = 0.0
 
     def update_stats(self, stat: dict[str, Any]) -> None:
         """Update statistics by appending new values to existing stat collections.
@@ -1136,7 +1136,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
             # If mAP is good, focus on Mass.
             # We start with a base of 10.0 so these models are always "Better" than bad-detection models
             # We ADD (1 - Error) because we want Error to be small.
-            return 10.0 + (1 / (1 + self.mass_mape))
+            return 10.0 + (1 / (1.0 + self.mass_mape))
 
     @property
     def ap_class_index(self) -> list:
