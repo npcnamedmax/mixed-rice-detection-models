@@ -961,10 +961,10 @@ class Metric(SimpleClass):
         """Return model fitness."""
         # Weights for [P, R, mAP@0.5, mAP@0.5:0.95]
         # We set weight for MassMAPE to 0.0 here because we handle it manually below
-        w = [0.0, 0.0, 0.0, 1.0] 
+        w = [0.0, 0.0, 0.0, 1.0, 0.0] 
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
-        #print("MASS MAAPE HERE:   " , self.mass_mape)
+        print("map5095????? HERE:   " , res)
         # Conditional Logic
         return res
 
