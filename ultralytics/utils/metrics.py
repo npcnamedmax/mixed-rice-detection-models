@@ -1112,7 +1112,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
-        return [self.box.mean_results(), self.mass_mape]
+        return [*self.box.mean_results(), self.mass_mape]
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return the result of evaluating the performance of an object detection model on a specific class."""
