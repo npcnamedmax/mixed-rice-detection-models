@@ -133,7 +133,7 @@ class YOLODataset(BaseDataset):
                             "shape": shape,
                             "cls": lb[:, 0:1],  # n, 1
                             "bboxes": lb[:, 1:],  # n, 4
-                            "mass": lb[:, 5],
+                            "mass": lb[:, 5:6],
                             "segments": segments,
                             "keypoints": keypoint,
                             "normalized": True,

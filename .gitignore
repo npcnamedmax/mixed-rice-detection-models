@@ -204,3 +204,4 @@ args.yaml
 results.csv
 test.py
 calculate_MAE.py
+yolo11n.pt
