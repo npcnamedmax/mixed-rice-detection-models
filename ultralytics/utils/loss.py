@@ -302,19 +302,12 @@ class v8DetectionLoss:
             mass_mask = target_mass > 0 # checks if theres any invalid/missing mass labels
 
             if mass_mask.sum() > 0:
-                # 1. Clamp predictions to 0. Mass cannot be negative, and log of negative is NaN.
-                #    We use 1e-6 as a tiny buffer just in case, though log1p(0) is safe.
                 pred_safe = pred_mass[mass_mask].clamp(min=0)
-                
-                # 2. Apply Log(x + 1) to both Prediction and Target
-                #    We use log1p because it is numerically more stable for small values than log(x+1)
                 
                 log_target = torch.log1p(target_mass[mass_mask])
                 # real_mass = torch.expm1(raw_output)
-                # 2. Smooth L1 Loss on Logs
-                #    - Behaves like Relative Error (Percentage)
-                #    - Symmetric (Over-prediction = Under-prediction)
-                #    - No division by zero instability
+                
+                
                 loss[3] = F.smooth_l1_loss(pred_safe, log_target, reduction="mean", beta=1.0)
             else:
                 loss[3] = 0.0

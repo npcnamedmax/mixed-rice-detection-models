@@ -313,14 +313,10 @@ class BaseValidator:
                         gt_m = true_mass.view(-1)[gt_idx].float().cpu()
                         assert (gt_m != 0).all()
                         pred_m = preds_mass.view(-1)[pred_idx].float().cpu()
-                        
-                        # Calculate MAPE (Mean Absolute Percentage Error)
-                        # Formula: |GT - Pred| / GT
-                        # Add 1e-6 to avoid division by zero
-                        errors = torch.abs(gt_m - pred_m) / (gt_m)
-                        
+                        gt_m = torch.log1p(gt_m)
+                        errors = torch.abs(gt_m - pred_m)
                         # Store globally
-                        self.mass_errors.extend(errors.tolist())
+                        self.mass_errors.extend(errors.tolist()) #MALE
                         
         return torch.tensor(correct, dtype=torch.bool, device=pred_classes.device)
 
