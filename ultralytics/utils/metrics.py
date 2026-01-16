@@ -1127,7 +1127,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
     def fitness(self) -> float:
         """Return the fitness of box object."""
         # Calculate standard mAP score
-        res = self.box.filter()
+        res = self.box.fitness()
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         # Conditional Logic
         if res < 0.7: # If mAP is below 0.5
