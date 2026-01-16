@@ -308,22 +308,21 @@ class v8DetectionLoss:
                 
                 # 2. Apply Log(x + 1) to both Prediction and Target
                 #    We use log1p because it is numerically more stable for small values than log(x+1)
-                log_pred = torch.log1p(pred_safe)
-                log_target = torch.log1p(target_mass[mass_mask])
                 
-                # 3. Calculate MSE between the logs
-                loss[3] = F.mse_loss(
-                    log_pred, 
-                    log_target, 
-                    reduction="sum"
-                ) / target_scores_sum 
+                log_target = torch.log1p(target_mass[mass_mask])
+                # real_mass = torch.expm1(raw_output)
+                # 2. Smooth L1 Loss on Logs
+                #    - Behaves like Relative Error (Percentage)
+                #    - Symmetric (Over-prediction = Under-prediction)
+                #    - No division by zero instability
+                loss[3] = F.smooth_l1_loss(pred_safe, log_target, reduction="mean", beta=1.0)
             else:
                 loss[3] = 0.0
 
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
-        loss[3] *= 5.0
+        loss[3] *= 1.5
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
