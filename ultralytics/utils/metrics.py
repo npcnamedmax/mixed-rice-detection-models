@@ -943,7 +943,7 @@ class Metric(SimpleClass):
 
     def mean_results(self) -> list[float]:
         """Return mean of results, mp, mr, map50, map."""
-        return [self.mp, self.mr, self.map50, self.map, self.mass_mape]
+        return [self.mp, self.mr, self.map50, self.map]
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return class-aware result, p[i], r[i], ap50[i], ap[i]."""
@@ -1112,7 +1112,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
-        return self.box.mean_results()
+        return [self.box.mean_results(), self.mass_mape]
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return the result of evaluating the performance of an object detection model on a specific class."""
