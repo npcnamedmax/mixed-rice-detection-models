@@ -962,7 +962,7 @@ class Metric(SimpleClass):
         # Weights for [P, R, mAP@0.5, mAP@0.5:0.95]
         # We set weight for MassMAPE to 0.0 here because we handle it manually below
         w = [0.0, 0.0, 0.0, 1.0] 
-        
+        print("HEHERHERHERHEH")
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
         #print("MASS MAAPE HERE:   " , self.mass_mape)
@@ -1128,6 +1128,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         """Return the fitness of box object."""
         # Calculate standard mAP score
         res = self.box.fitness()
+        print("HEHERHERHERHEHINSADJSDJASOKJDOKASJ")
         return res
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         '''
