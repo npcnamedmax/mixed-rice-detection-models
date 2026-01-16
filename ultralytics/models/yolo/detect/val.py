@@ -256,6 +256,7 @@ class DetectionValidator(BaseValidator):
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
         results = self.metrics.results_dict
+        self.mass_mape = np.mean(self.mass_errors)
         results['metrics/mass_mape'] = self.mass_mape 
         
         return results

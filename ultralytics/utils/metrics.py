@@ -965,7 +965,7 @@ class Metric(SimpleClass):
         
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
-        print("MASS MAAPE HERE:   " , self.mass_mape)
+        #print("MASS MAAPE HERE:   " , self.mass_mape)
         # Conditional Logic
         if res < 0.7: # If mAP is below 0.5
             return res # Return just the mAP (focus on learning detection)
