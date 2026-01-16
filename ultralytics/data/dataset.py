@@ -265,7 +265,21 @@ class YOLODataset(BaseDataset):
         keypoints = label.pop("keypoints", None)
         bbox_format = label.pop("bbox_format")
         normalized = label.pop("normalized")
-        # mass = label.pop("mass")
+        mass = label.pop("mass")
+        if mass.ndim == 1:
+            mass = mass[:, None]
+        
+        # 1. CRASH TEST: If there are 0 objects, STOP immediately.
+        # This protects against empty arrays entering the pipeline.
+        if mass.shape[0] == 0:
+            raise ValueError(f"CRASH: Found image with 0 objects (Empty Mass Array) in {label.get('im_file')}!")
+
+        # 2. Check for 0 value (Optional, if you want to ensure valid mass)
+        if (mass == 0).any():
+            raise ValueError(f"CRASH: Found object with 0 mass in {label.get('im_file')}!")
+
+        # 3. Concatenate
+        label["cls"] = np.hstack((label["cls"], mass))
         # NOTE: do NOT resample oriented boxes
         segment_resamples = 100 if self.use_obb else 1000
         if len(segments) > 0:

@@ -311,7 +311,7 @@ class BaseValidator:
                         # Extract Mass Values
                         # Ensure they are on CPU/Numpy for calculation
                         gt_m = true_mass.view(-1)[gt_idx].float().cpu()
-                        assert gt_m != 0
+                        assert (gt_m != 0).all()
                         pred_m = preds_mass.view(-1)[pred_idx].float().cpu()
                         
                         # Calculate MAPE (Mean Absolute Percentage Error)
