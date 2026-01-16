@@ -357,7 +357,7 @@ class v8SegmentationLoss(v8DetectionLoss):
         # Targets
         try:
             batch_idx = batch["batch_idx"].view(-1, 1)
-            targets = torch.cat((batch_idx, batch["cls"].view(-1, 1), batch["bboxes"]), 1)
+            targets = torch.cat((batch_idx, batch["cls"].view(-1, 1), batch["bboxes"], batch["mass"].view(-1, 1)), 1)
             targets = self.preprocess(targets, batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
             gt_labels, gt_bboxes = targets.split((1, 4), 2)  # cls, xyxy
             mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)

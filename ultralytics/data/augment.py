@@ -2053,10 +2053,11 @@ class Format:
             >>> formatted_labels = formatter(labels)
             >>> print(formatted_labels.keys())
         """
+        
         img = labels.pop("img")
         h, w = img.shape[:2]
         cls = labels.pop("cls")
-        mass = labels.pop("mass")
+        
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
@@ -2074,14 +2075,10 @@ class Format:
         labels["img"] = self._format_img(img)
         labels["cls"] = torch.from_numpy(cls) if nl else torch.zeros(nl, 1)
         labels["bboxes"] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
-        if mass is not None:
-            # If mass exists in numpy, convert to tensor
-            labels["mass"] = torch.from_numpy(mass) if nl else torch.zeros(nl, 1)
-        else:
-            # Create zeros if mass is missing (prevents crash, but check your dataset!)
-            print('MASS IS MISSING!')
-            labels["mass"] = torch.zeros(nl, 1)
+        assert "mass" in labels
         
+        mass = labels["mass"]
+        labels["mass"] = torch.from_numpy(mass) if nl else torch.zeros(nl, 1)
         '''
         if self.return_keypoint:
             labels["keypoints"] = (
