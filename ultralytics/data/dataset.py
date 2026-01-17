@@ -320,6 +320,7 @@ class YOLODataset(BaseDataset):
                 # -----------------------------------
                 filtered_value = [v for v in value if v.dim() > 1 and v.size(1) == 5]
                 sample_box = filtered_value[0][0]
+                '''
                 mass_val = sample_box[4].item()
                 print(f"✅ LOADING VERIFICATION:")
                 print(f"   Full Row: {sample_box.numpy()}")
@@ -328,6 +329,7 @@ class YOLODataset(BaseDataset):
                 if len(filtered_value) == 0:
                     #print("filtered value: " , len(filtered_value), "Key is: ", k)
                     raise ValueError(f"No valid tensors with size[1] == 5 for key '{k}'.")
+                '''
                 value = torch.cat(filtered_value, 0)
                 #print(f"[COLLATE] Batched bboxes shape: {value.shape}")
                 #print("  Sample weights (value[:, 4]):", value[:, 4][:10])  # First 10 weights
