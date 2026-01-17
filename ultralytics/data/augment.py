@@ -2053,7 +2053,8 @@ class Format:
         img = labels.pop("img")
         h, w = img.shape[:2]
         cls = labels.pop("cls")
-        
+        assert "mass" in labels, "Error: Mass labels missing from dataset"
+        mass_numpy = labels.pop("mass")
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
@@ -2071,7 +2072,21 @@ class Format:
             instances.normalize(w, h)
         labels['img'] = self._format_img(img)
         labels['cls'] = torch.from_numpy(cls) if nl else torch.zeros(nl)
-        labels['bboxes'] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
+        #labels['bboxes'] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
+        if nl:
+            # Get the transformed boxes (Valid Coords, Invalid Mass)
+            bboxes = torch.from_numpy(instances.bboxes)
+            
+            # Get the saved mass (Valid Mass)
+            mass_tensor = torch.from_numpy(mass_numpy)
+            if mass_tensor.ndim == 1:
+                mass_tensor = mass_tensor.view(-1, 1)
+
+            # Combine: [x,y,w,h] + [mass]
+            # We assume the index order wasn't shuffled because Mosaic is OFF.
+            labels["bboxes"] = torch.cat((bboxes[:, :4], mass_tensor), dim=1)
+        else:
+            labels["bboxes"] = torch.zeros((nl, 5))
         if self.return_keypoint:
             labels['keypoints'] = torch.from_numpy(instances.keypoints)
         # Then we can use collate_fn
