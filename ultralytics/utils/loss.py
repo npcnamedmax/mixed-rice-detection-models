@@ -303,19 +303,17 @@ class v8DetectionLoss:
 
             if mass_mask.sum() > 0:
                 pred_safe = pred_mass[mass_mask].relu().clamp(min=1e-6)
-                
+                pred_mass = torch.log1p(pred_safe)
                 log_target = torch.log1p(target_mass[mass_mask])
                 # real_mass = torch.expm1(raw_output)
-                
-                
-                loss[3] = F.smooth_l1_loss(pred_safe, log_target, reduction="mean", beta=1.0)
+                loss[3] = F.mse_loss(pred_mass, log_target, reduction="mean", beta=1.0)
             else:
                 loss[3] = 0.0
 
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
-        loss[3] *= 1.5
+        loss[3] *= 6.0
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 

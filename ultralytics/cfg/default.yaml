@@ -9,9 +9,9 @@ mode: train # (str) YOLO mode, i.e. train, val, predict, export, track, benchmar
 # Train settings -------------------------------------------------------------------------------------------------------
 model: # (str, optional) path to model file, i.e. yolov8n.pt or yolov8n.yaml
 data: # (str, optional) path to data file, i.e. coco8.yaml
-epochs: 150 # (int) number of epochs to train for
+epochs: 100 # (int) number of epochs to train for
 time: # (float, optional) max hours to train; overrides epochs if set
-patience: 30 # (int) early stop after N epochs without val improvement
+patience: 100 # (int) early stop after N epochs without val improvement
 batch: 16 # (int) batch size; use -1 for AutoBatch
 imgsz: 640 # (int | list) train/val use int (square); predict/export may use [h,w]
 save: True # (bool) save train checkpoints and predict results
@@ -23,7 +23,7 @@ project: # (str, optional) project name for results root
 name: # (str, optional) experiment name; results in 'project/name'
 exist_ok: False # (bool) overwrite existing 'project/name' if True
 pretrained: True # (bool | str) use pretrained weights (bool) or load weights from path (str)
-optimizer: AdamW # (str) optimizer: SGD, Adam, Adamax, AdamW, NAdam, RAdam, RMSProp, or auto
+optimizer: auto # (str) optimizer: SGD, Adam, Adamax, AdamW, NAdam, RAdam, RMSProp, or auto
 verbose: True # (bool) print verbose logs during training/val
 seed: 0 # (int) random seed for reproducibility
 deterministic: True # (bool) enable deterministic ops; reproducible but may be slower
@@ -91,11 +91,11 @@ workspace: # (float, optional) engine (TensorRT) only; workspace size in GiB, e.
 nms: False # (bool) fuse NMS into exported model when backend supports; if True, conf/iou apply (agnostic_nms except coreml)
 
 # Hyperparameters ------------------------------------------------------------------------------------------------------
-lr0: 0.0001 # (float) initial learning rate (SGD=1e-2, Adam/AdamW=1e-3)
+lr0: 0.01 # (float) initial learning rate (SGD=1e-2, Adam/AdamW=1e-3)
 lrf: 0.01 # (float) final LR fraction; final LR = lr0 * lrf
 momentum: 0.937 # (float) SGD momentum or Adam beta1
-weight_decay: 0.0001 # (float) weight decay (L2 regularization)
-warmup_epochs: 5.0 # (float) warmup epochs (fractions allowed)
+weight_decay: 0.0005 # (float) weight decay (L2 regularization)
+warmup_epochs: 3.0 # (float) warmup epochs (fractions allowed)
 warmup_momentum: 0.8 # (float) initial momentum during warmup
 warmup_bias_lr: 0.1 # (float) bias learning rate during warmup
 box: 10.0 # (float) box loss gain
@@ -107,7 +107,7 @@ nbs: 64 # (int) nominal batch size used for loss normalization
 hsv_h: 0.00 # (float) HSV hue augmentation fraction
 hsv_s: 0.0 # (float) HSV saturation augmentation fraction
 hsv_v: 0.0 # (float) HSV value (brightness) augmentation fraction
-degrees: 10.0 # (float) rotation degrees (+/-)
+degrees: 0.0 # (float) rotation degrees (+/-)
 translate: 0.0 # (float) translation fraction (+/-)
 scale: 0.0 # (float) scale gain (+/-)
 shear: 0.0 # (float) shear degrees (+/-)
