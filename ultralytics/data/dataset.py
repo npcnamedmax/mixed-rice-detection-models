@@ -303,7 +303,21 @@ class YOLODataset(BaseDataset):
                 value = [torch.as_tensor(v) if not isinstance(v, torch.Tensor) else v for v in value]
                 value = torch.cat(value, 0)
             if k in ['bboxes']:
-                #print(f"Tensor Shape: {value[0].shape}")
+                for idx, v in enumerate(value):
+                    if v.shape[0] == 0:
+                        # We found the culprit!
+                        # Get the filename from the corresponding batch item
+                        bad_file = batch[idx].get('im_file', 'Unknown File')
+                        print(f"\n❌ CRITICAL DATA ERROR FOUND IN BATCH!")
+                        print(f"   Image Index in Batch: {idx}")
+                        print(f"   Filename: {bad_file}")
+                        print(f"   Box Tensor Shape: {v.shape}")
+                        print("   This image has 0 valid boxes, causing the crash.")
+                        print("-" * 40)
+                        
+                        # Crash intentionally so you can stop and fix the file
+                        raise ValueError(f"Found image with 0 instances: {bad_file}")
+                # -----------------------------------
                 filtered_value = [v for v in value if v.dim() > 1 and v.size(1) == 5]
                 sample_box = filtered_value[0][0]
                 mass_val = sample_box[4].item()
