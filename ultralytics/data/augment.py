@@ -2055,10 +2055,32 @@ class Format:
         cls = labels.pop("cls")
         assert "mass" in labels, "Error: Mass labels missing from dataset"
         mass_numpy = labels.pop("mass")
+        original_count = len(mass_numpy)
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
-        nl = len(instances)
+        nl = len(instances) # This is the count AFTER transforms
+
+        # --- DEBUG: CHECK FOR DROPPED BOXES ---
+        if nl != original_count:
+            print(f"\n🛑 DATA CORRUPTION DETECTED!")
+            print(f"   File: {labels.get('im_file')}")
+            print(f"   Original Objects: {original_count}")
+            print(f"   Remaining Objects: {nl}")
+            
+            if nl == 0:
+                print("   ⚠️ CRITICAL: All boxes were removed from this image!")
+                
+                # Print the box details to see WHY they might be invalid
+                # (e.g., negative coordinates, or size 0)
+                print(f"   Image Size: {h}x{w}")
+                print(f"   Mass Data (First 5): {mass_numpy[:5].flatten()}")
+                # We can't print instances.bboxes easily if it's empty, 
+                # but we know they existed before this function.
+            
+            # Crash intentionally so you can see the file path
+            raise RuntimeError("Sanity Check Failed: Transforms deleted valid boxes.")
+        # --------------------------------------
 
         if self.return_mask:
             if nl:
