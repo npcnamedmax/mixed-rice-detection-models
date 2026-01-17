@@ -1133,7 +1133,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         y = self.mass_mape
         z = (1.0 / (1.0 + self.mass_mape))
         print("res is " , res, " mass_mape is ", y, " inverse is ", z)
-        res = res + z
+        res = (0.7 * res) + (0.3 * z)
         return res
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         '''
