@@ -175,9 +175,9 @@ class DETRLoss(nn.Module):
             matched_preds = pred_mass[indices]
             selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1)
             safe_preds = selected_preds.relu().clamp(min=1e-6) 
-            # pred = torch.log1p(safe_preds)
+            pred = torch.log1p(safe_preds)
             gt = torch.log1p(target_mass)
-            loss[name_mass] = 1.5 * F.smooth_l1_loss(gt, safe_preds, reduction="sum") / len(target_mass)
+            loss[name_mass] = 4.0 * F.mse_loss(gt, pred, reduction="sum") / len(target_mass)
 
         return loss
     
