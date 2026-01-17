@@ -1107,7 +1107,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
     @property
     def keys(self) -> list[str]:
         """Return a list of keys for accessing specific metrics."""
-        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)"]
+        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)", "metrics/mass_MAPE"]
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
@@ -1129,7 +1129,11 @@ class DetMetrics(SimpleClass, DataExportMixin):
         w = [0.0, 0.0, 0.0, 1.0, 0.0] 
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
-        res = res + 0.3 * (1.0 / 1.0 + self.mass_mape)
+        x = res
+        y = self.mass_mape
+        z = (1.0 / (1.0 + self.mass_mape))
+        print("res is " , res, " mass_mape is ", y, " inverse is ", z)
+        res = res + z
         return res
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         '''
@@ -1273,6 +1277,7 @@ class SegmentMetrics(DetMetrics):
             "metrics/recall(M)",
             "metrics/mAP50(M)",
             "metrics/mAP50-95(M)",
+            "metrics/mass_MAPE"
         ]
 
     def mean_results(self) -> list[float]:

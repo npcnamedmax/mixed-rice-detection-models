@@ -220,8 +220,6 @@ class DetectionValidator(BaseValidator):
             for normalize in True, False:
                 self.confusion_matrix.plot(save_dir=self.save_dir, normalize=normalize, on_plot=self.on_plot)
         self.metrics.speed = self.speed
-        self.mass_mape = np.mean(self.mass_errors)
-        self.metrics.mass_mape = self.mass_mape
         self.metrics.confusion_matrix = self.confusion_matrix
         self.metrics.save_dir = self.save_dir
 
@@ -255,11 +253,10 @@ class DetectionValidator(BaseValidator):
         """
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
-        keys = self.metrics.keys + ["fitness"]
-        vals = self.metrics.mean_results() + [self.metrics.fitness]
-        results = dict(zip(keys, vals))
-        results['metrics/mass_mape'] = self.mass_mape 
-        return results
+        self.mass_mape = np.mean(self.mass_errors)
+        self.mass_errors = []
+        self.metrics.mass_mape = self.mass_mape
+        return self.metrics.results_dict
 
     def print_results(self) -> None:
         """Print training/validation set metrics per class."""
