@@ -2057,7 +2057,8 @@ class Format:
         img = labels.pop("img")
         h, w = img.shape[:2]
         cls = labels.pop("cls")
-        
+        assert "mass" in labels, "Error: Mass labels missing from dataset"
+        mass_numpy = labels.pop("mass")
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
@@ -2068,34 +2069,30 @@ class Format:
                 masks, instances, cls = self._format_segments(instances, cls, w, h)
                 masks = torch.from_numpy(masks)
             else:
-                masks = torch.zeros(
-                    1 if self.mask_overlap else nl, img.shape[0] // self.mask_ratio, img.shape[1] // self.mask_ratio
-                )
-            labels["masks"] = masks
-        labels["img"] = self._format_img(img)
-        labels["cls"] = torch.from_numpy(cls) if nl else torch.zeros(nl, 1)
-        labels["bboxes"] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
-        assert "mass" in labels
-        
-        mass = labels["mass"]
-        labels["mass"] = torch.from_numpy(mass) if nl else torch.zeros(nl, 1)
-        '''
-        if self.return_keypoint:
-            labels["keypoints"] = (
-                torch.empty(0, 3) if instances.keypoints is None else torch.from_numpy(instances.keypoints)
-            )
-            if self.normalize:
-                labels["keypoints"][..., 0] /= w
-                labels["keypoints"][..., 1] /= h
-        if self.return_obb:
-            labels["bboxes"] = (
-                xyxyxyxy2xywhr(torch.from_numpy(instances.segments)) if len(instances.segments) else torch.zeros((0, 5))
-            )
-        '''
-        # NOTE: need to normalize obb in xywhr format for width-height consistency
+                masks = torch.zeros(1 if self.mask_overlap else nl, img.shape[0] // self.mask_ratio,
+                                    img.shape[1] // self.mask_ratio)
+            labels['masks'] = masks
         if self.normalize:
-            labels["bboxes"][:, [0, 2]] /= w
-            labels["bboxes"][:, [1, 3]] /= h
+            instances.normalize(w, h)
+        labels['img'] = self._format_img(img)
+        labels['cls'] = torch.from_numpy(cls) if nl else torch.zeros(nl)
+        #labels['bboxes'] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
+        if nl:
+            # Get the transformed boxes (Valid Coords, Invalid Mass)
+            bboxes = torch.from_numpy(instances.bboxes)
+            
+            # Get the saved mass (Valid Mass)
+            mass_tensor = torch.from_numpy(mass_numpy)
+            if mass_tensor.ndim == 1:
+                mass_tensor = mass_tensor.view(-1, 1)
+
+            # Combine: [x,y,w,h] + [mass]
+            # We assume the index order wasn't shuffled because Mosaic is OFF.
+            labels["bboxes"] = torch.cat((bboxes[:, :4], mass_tensor), dim=1)
+        else:
+            labels["bboxes"] = torch.zeros((nl, 5))
+        if self.return_keypoint:
+            labels['keypoints'] = torch.from_numpy(instances.keypoints)
         # Then we can use collate_fn
         if self.batch_idx:
             labels["batch_idx"] = torch.zeros(nl)
