@@ -1114,8 +1114,6 @@ class RandomPerspective:
                 img = cv2.warpPerspective(img, M, dsize=self.size, borderValue=(114, 114, 114))
             else:  # affine
                 img = cv2.warpAffine(img, M[:2], dsize=self.size, borderValue=(114, 114, 114))
-            if img.ndim == 2:
-                img = img[..., None]
         return img, M, s
 
     def apply_bboxes(self, bboxes: np.ndarray, M: np.ndarray) -> np.ndarray:
@@ -1150,7 +1148,7 @@ class RandomPerspective:
         x = xy[:, [0, 2, 4, 6]]
         y = xy[:, [1, 3, 5, 7]]
         result=np.concatenate((x.min(1), y.min(1), x.max(1), y.max(1)), dtype=bboxes.dtype).reshape(4, n).T
-        
+        b=bboxes[:,4:]
         add_out=np.concatenate((result,  bboxes[:,4:]), axis=1)
         return add_out
 
@@ -1185,8 +1183,6 @@ class RandomPerspective:
         xy = xy[:, :2] / xy[:, 2:3]
         segments = xy.reshape(n, -1, 2)
         bboxes = np.stack([segment2box(xy, self.size[0], self.size[1]) for xy in segments], 0)
-        segments[..., 0] = segments[..., 0].clip(bboxes[:, 0:1], bboxes[:, 2:3])
-        segments[..., 1] = segments[..., 1].clip(bboxes[:, 1:2], bboxes[:, 3:4])
         return bboxes, segments
 
     def apply_keypoints(self, keypoints: np.ndarray, M: np.ndarray) -> np.ndarray:
@@ -2068,34 +2064,16 @@ class Format:
                 masks, instances, cls = self._format_segments(instances, cls, w, h)
                 masks = torch.from_numpy(masks)
             else:
-                masks = torch.zeros(
-                    1 if self.mask_overlap else nl, img.shape[0] // self.mask_ratio, img.shape[1] // self.mask_ratio
-                )
-            labels["masks"] = masks
-        labels["img"] = self._format_img(img)
-        labels["cls"] = torch.from_numpy(cls) if nl else torch.zeros(nl, 1)
-        labels["bboxes"] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
-        assert "mass" in labels
-        
-        mass = labels["mass"]
-        labels["mass"] = torch.from_numpy(mass) if nl else torch.zeros(nl, 1)
-        '''
-        if self.return_keypoint:
-            labels["keypoints"] = (
-                torch.empty(0, 3) if instances.keypoints is None else torch.from_numpy(instances.keypoints)
-            )
-            if self.normalize:
-                labels["keypoints"][..., 0] /= w
-                labels["keypoints"][..., 1] /= h
-        if self.return_obb:
-            labels["bboxes"] = (
-                xyxyxyxy2xywhr(torch.from_numpy(instances.segments)) if len(instances.segments) else torch.zeros((0, 5))
-            )
-        '''
-        # NOTE: need to normalize obb in xywhr format for width-height consistency
+                masks = torch.zeros(1 if self.mask_overlap else nl, img.shape[0] // self.mask_ratio,
+                                    img.shape[1] // self.mask_ratio)
+            labels['masks'] = masks
         if self.normalize:
-            labels["bboxes"][:, [0, 2]] /= w
-            labels["bboxes"][:, [1, 3]] /= h
+            instances.normalize(w, h)
+        labels['img'] = self._format_img(img)
+        labels['cls'] = torch.from_numpy(cls) if nl else torch.zeros(nl)
+        labels['bboxes'] = torch.from_numpy(instances.bboxes) if nl else torch.zeros((nl, 9))
+        if self.return_keypoint:
+            labels['keypoints'] = torch.from_numpy(instances.keypoints)
         # Then we can use collate_fn
         if self.batch_idx:
             labels["batch_idx"] = torch.zeros(nl)
@@ -2125,9 +2103,8 @@ class Format:
             torch.Size([3, 100, 100])
         """
         if len(img.shape) < 3:
-            img = img[..., None]
-        img = img.transpose(2, 0, 1)
-        img = np.ascontiguousarray(img[::-1] if random.uniform(0, 1) > self.bgr and img.shape[0] == 3 else img)
+            img = np.expand_dims(img, -1)
+        img = np.ascontiguousarray(img.transpose(2, 0, 1)[::-1])
         img = torch.from_numpy(img)
         return img
 
@@ -2380,66 +2357,31 @@ class RandomLoadText:
         return labels
 
 
-def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bool = False):
-    """Apply a series of image transformations for training.
 
-    This function creates a composition of image augmentation techniques to prepare images for YOLO training. It
-    includes operations such as mosaic, copy-paste, random perspective, mixup, and various color adjustments.
 
-    Args:
-        dataset (Dataset): The dataset object containing image data and annotations.
-        imgsz (int): The target image size for resizing.
-        hyp (IterableSimpleNamespace): A dictionary of hyperparameters controlling various aspects of the
-            transformations.
-        stretch (bool): If True, applies stretching to the image. If False, uses LetterBox resizing.
 
-    Returns:
-        (Compose): A composition of image transformations to be applied to the dataset.
 
-    Examples:
-        >>> from ultralytics.data.dataset import YOLODataset
-        >>> from ultralytics.utils import IterableSimpleNamespace
-        >>> dataset = YOLODataset(img_path="path/to/images", imgsz=640)
-        >>> hyp = IterableSimpleNamespace(mosaic=1.0, copy_paste=0.5, degrees=10.0, translate=0.2, scale=0.9)
-        >>> transforms = v8_transforms(dataset, imgsz=640, hyp=hyp)
-        >>> augmented_data = transforms(dataset[0])
-
-        >>> # With custom albumentations
-        >>> import albumentations as A
-        >>> augmentations = [A.Blur(p=0.01), A.CLAHE(p=0.01)]
-        >>> hyp.augmentations = augmentations
-        >>> transforms = v8_transforms(dataset, imgsz=640, hyp=hyp)
-    """
-    mosaic = Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic)
-    affine = RandomPerspective(
-        degrees=hyp.degrees,
-        translate=hyp.translate,
-        scale=hyp.scale,
-        shear=hyp.shear,
-        perspective=hyp.perspective,
-        pre_transform=None if stretch else LetterBox(new_shape=(imgsz, imgsz)),
-    )
-
-    pre_transform = Compose([mosaic, affine])
-    if hyp.copy_paste_mode == "flip":
-        pre_transform.insert(1, CopyPaste(p=hyp.copy_paste, mode=hyp.copy_paste_mode))
-    else:
-        pre_transform.append(
-            CopyPaste(
-                dataset,
-                pre_transform=Compose([Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic), affine]),
-                p=hyp.copy_paste,
-                mode=hyp.copy_paste_mode,
-            )
-        )
-    flip_idx = dataset.data.get("flip_idx", [])  # for keypoints augmentation
+def v8_transforms(dataset, imgsz, hyp, stretch=False):
+    """Convert images to a size suitable for YOLOv8 training."""
+    pre_transform = Compose([
+        Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic),
+        CopyPaste(p=hyp.copy_paste),
+        RandomPerspective(
+            degrees=hyp.degrees,
+            translate=hyp.translate,
+            scale=hyp.scale,
+            shear=hyp.shear,
+            perspective=hyp.perspective,
+            pre_transform=None if stretch else LetterBox(new_shape=(imgsz, imgsz)),
+        )])
+    flip_idx = dataset.data.get('flip_idx', [])  # for keypoints augmentation
     if dataset.use_keypoints:
         kpt_shape = dataset.data.get("kpt_shape", None)
         if len(flip_idx) == 0 and (hyp.fliplr > 0.0 or hyp.flipud > 0.0):
             hyp.fliplr = hyp.flipud = 0.0  # both fliplr and flipud require flip_idx
             LOGGER.warning("No 'flip_idx' array defined in data.yaml, disabling 'fliplr' and 'flipud' augmentations.")
         elif flip_idx and (len(flip_idx) != kpt_shape[0]):
-            raise ValueError(f"data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}")
+            raise ValueError(f'data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}')
 
     return Compose(
         [

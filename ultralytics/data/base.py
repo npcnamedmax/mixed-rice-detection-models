@@ -244,8 +244,6 @@ class BaseDataset(Dataset):
                     im = cv2.resize(im, (w, h), interpolation=cv2.INTER_LINEAR)
             elif not (h0 == w0 == self.imgsz):  # resize by stretching image to square imgsz
                 im = cv2.resize(im, (self.imgsz, self.imgsz), interpolation=cv2.INTER_LINEAR)
-            if im.ndim == 2:
-                im = im[..., None]
 
             # Add to buffer if training with augmentations
             if self.augment:
