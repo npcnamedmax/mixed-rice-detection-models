@@ -306,7 +306,7 @@ class v8DetectionLoss:
                 pred_mass = torch.log1p(pred_safe)
                 log_target = torch.log1p(target_mass[mass_mask])
                 # real_mass = torch.expm1(raw_output)
-                loss[3] = F.mse_loss(pred_mass, log_target, reduction="mean", beta=1.0)
+                loss[3] = F.mse_loss(pred_mass, log_target, reduction="mean")
             else:
                 loss[3] = 0.0
 
