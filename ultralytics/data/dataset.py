@@ -300,6 +300,7 @@ class YOLODataset(BaseDataset):
             elif k == "visuals":
                 value = torch.nn.utils.rnn.pad_sequence(value, batch_first=True)
             if k in {"masks", "keypoints", "cls", "segments", "obb", "mass"}:
+                value = [torch.as_tensor(v) if not isinstance(v, torch.Tensor) else v for v in value]
                 value = torch.cat(value, 0)
             if k in ['bboxes']:
                 #print(f"Tensor Shape: {value[0].shape}")
