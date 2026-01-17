@@ -175,12 +175,13 @@ class DETRLoss(nn.Module):
             matched_preds = pred_mass[indices]
             selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1)
             safe_preds = selected_preds.relu().clamp(min=1e-6) 
+            '''
             sample_pred = safe_preds[:5].detach().cpu().numpy().flatten()
             sample_gt = target_mass[:5].detach().cpu().numpy().flatten()
             print(f"\n🔍 RT-DETR MASS DEBUG:")
             print(f"   Target Mass (GT): {sample_gt}")
             print(f"   Pred Mass (Model): {sample_pred}")
-
+            '''
             pred = torch.log1p(safe_preds)
             gt = torch.log1p(target_mass)
             loss[name_mass] = 4.0 * F.mse_loss(gt, pred, reduction="sum") / len(target_mass)
