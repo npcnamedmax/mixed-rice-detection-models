@@ -1126,10 +1126,14 @@ class DetMetrics(SimpleClass, DataExportMixin):
     def fitness(self) -> float:
         """Return the fitness of box object."""
         # Calculate standard mAP score
-        w = [0.0, 0.0, 0.0, 0.7, 0.0] 
+        w = [0.0, 0.0, 0.0, 1.0, 0.0] 
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
-        res = res + 0.3 * (1.0 / 1.0 + self.mass_mape)
+        x = res
+        y = self.mass_mape
+        z = (1.0 / 1.0 + self.mass_mape)
+        print("res is " , res, " mass_mape is ", y, " inverse is ", z)
+        res = res + z
         return res
         #print("MASS MAAPE HERE:   " , self.mass_mape)
         '''
