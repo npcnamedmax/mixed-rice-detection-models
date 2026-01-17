@@ -310,7 +310,7 @@ class v8DetectionLoss:
                 #    We use log1p because it is numerically more stable for small values than log(x+1)
                 log_pred = torch.log1p(pred_safe)
                 log_target = torch.log1p(target_mass[mass_mask])
-
+                '''
                 debug_pred = pred_safe[:5].detach().cpu().numpy().flatten()
                 debug_target = target_mass[mass_mask][:5].detach().cpu().numpy().flatten()
                 
@@ -322,7 +322,6 @@ class v8DetectionLoss:
                 print(f"Target Mass (Raw): {debug_target}")
                 print(f"Pred (Log): {debug_log_pred}")
                 print(f"Target (Log): {debug_log_target}")
-                '''
                 '''
                 # 3. Calculate MSE between the logs
                 loss[3] = F.mse_loss(
