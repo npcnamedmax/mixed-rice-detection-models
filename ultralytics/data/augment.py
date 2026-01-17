@@ -2054,7 +2054,7 @@ class Format:
         h, w = img.shape[:2]
         cls = labels.pop("cls")
         assert "mass" in labels, "Error: Mass labels missing from dataset"
-        mass_numpy = labels.pop("mass")
+        mass_numpy = labels["mass"]
         original_count = len(mass_numpy)
         instances = labels.pop("instances")
         instances.convert_bbox(format=self.bbox_format)
