@@ -317,13 +317,13 @@ class v8DetectionLoss:
                 # 2. Calculate what the loss components would be
                 debug_log_pred = torch.log1p(pred_safe[:5]).detach().cpu().numpy().flatten()
                 debug_log_target = torch.log1p(target_mass[mass_mask][:5]).detach().cpu().numpy().flatten()
-                
+                '''
                 print(f"\n--- DEBUG EPOCH START ---")
                 print(f"Pred Mass (Raw): {debug_pred}") 
                 print(f"Target Mass (Raw): {debug_target}")
                 print(f"Pred (Log): {debug_log_pred}")
                 print(f"Target (Log): {debug_log_target}")
-                
+                '''
                 # 3. Calculate MSE between the logs
                 loss[3] = F.mse_loss(
                     log_pred, 
