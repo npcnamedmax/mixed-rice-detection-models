@@ -1131,7 +1131,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
         x = res
         y = self.mass_mape
-        z = (1.0 / 1.0 + self.mass_mape)
+        z = (1.0 / (1.0 + self.mass_mape))
         print("res is " , res, " mass_mape is ", y, " inverse is ", z)
         res = res + z
         return res
