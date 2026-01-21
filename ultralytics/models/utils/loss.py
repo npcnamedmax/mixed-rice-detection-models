@@ -64,10 +64,10 @@ class DETRLoss(nn.Module):
         """
         super().__init__()
 
-        if loss_gain is None:
-            loss_gain = {"class": 1, "bbox": 5, "giou": 2, "no_object": 0.1, "mask": 1, "dice": 1, "mass": 1}
+        
+        loss_gain = {"class": 1, "bbox": 5, "giou": 2, "no_object": 0.1, "mask": 1, "dice": 1, "mass": 1}
         self.nc = nc
-        self.matcher = HungarianMatcher(cost_gain={"class": 2, "bbox": 5, "giou": 2})
+        self.matcher = HungarianMatcher(cost_gain={"class": 1, "bbox": 5, "giou": 2})
         self.loss_gain = loss_gain
         self.aux_loss = aux_loss
         self.fl = FocalLoss(gamma, alpha) if use_fl else None
@@ -174,7 +174,7 @@ class DETRLoss(nn.Module):
         else:
             matched_preds = pred_mass[indices]
             selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1)
-            safe_preds = selected_preds.relu().clamp(min=1e-6) 
+            safe_preds = selected_preds.relu() 
             '''
             sample_pred = safe_preds[:5].detach().cpu().numpy().flatten()
             sample_gt = target_mass[:5].detach().cpu().numpy().flatten()
@@ -184,7 +184,7 @@ class DETRLoss(nn.Module):
             '''
             pred = torch.log1p(safe_preds)
             gt = torch.log1p(target_mass)
-            loss[name_mass] = 4.0 * F.mse_loss(gt, pred, reduction="sum") / len(target_mass)
+            loss[name_mass] = self.loss_gain["mass"] * F.l1_loss(gt, pred, reduction="sum") / len(target_mass)
 
         return loss
     
