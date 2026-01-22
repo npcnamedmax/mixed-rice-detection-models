@@ -324,7 +324,7 @@ class v8DetectionLoss:
                 print(f"Target (Log): {debug_log_target}")
                 '''
                 # 3. Calculate MSE between the logs
-                loss[3] = F.smooth_l1_loss(
+                loss[3] = F.mse_loss(
                     log_pred, 
                     log_target, 
                     reduction="sum"
@@ -335,7 +335,7 @@ class v8DetectionLoss:
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
-        loss[3] *= 1.2
+        loss[3] *= 2.5
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
