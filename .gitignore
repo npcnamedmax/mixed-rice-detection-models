@@ -205,3 +205,6 @@ results.csv
 test.py
 calculate_MAE.py
 yolo11n.pt
+baseweights/yolo11l.pt
+baseweights/yolo12l.pt
+baseweights/rtdetr-l.pt
