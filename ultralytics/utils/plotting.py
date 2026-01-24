@@ -727,6 +727,7 @@ def plot_images(
     bboxes = labels.get("bboxes", np.zeros(0, dtype=np.float32))
     confs = labels.get("conf", None)
     masks = labels.get("masks", np.zeros(0, dtype=np.uint8))
+    mass = labels["mass"]
     kpts = labels.get("keypoints", np.zeros(0, dtype=np.float32))
     images = labels.get("img", images)  # default to input images
 
@@ -774,6 +775,7 @@ def plot_images(
             classes = cls[idx].astype("int")
             labels = confs is None
             conf = confs[idx] if confs is not None else None  # check for confidence presence (label vs pred)
+            masses = mass[idx].astype("float")
 
             if len(bboxes):
                 boxes = bboxes[idx]
@@ -792,7 +794,7 @@ def plot_images(
                     color = colors(c)
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
-                        label = f"{c}" if labels else f"{c} {conf[j]:.1f}"
+                        label = f"{c}" if labels else f"{c} {conf[j]:.1f} {masses[j]:.2f}"
                         annotator.box_label(box, label, color=color)
 
             elif len(classes):
