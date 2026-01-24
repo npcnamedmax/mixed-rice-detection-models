@@ -714,10 +714,12 @@ def plot_images(
         - 3 channels: Used as-is (standard RGB)
         - 4+ channels: Cropped to first 3 channels
     """
-    for k in {"cls", "bboxes", "conf", "masks", "keypoints", "batch_idx", "images"}:
+    for k in {"cls", "bboxes", "conf", "masks", "keypoints", "batch_idx", "images", "mass"}:
         if k not in labels:
             continue
         if k == "cls" and labels[k].ndim == 2:
+            labels[k] = labels[k].squeeze(1)  # squeeze if shape is (n, 1)
+        if k == "mass" and labels[k].ndim == 2:
             labels[k] = labels[k].squeeze(1)  # squeeze if shape is (n, 1)
         if isinstance(labels[k], torch.Tensor):
             labels[k] = labels[k].cpu().numpy()
