@@ -289,7 +289,7 @@ class v8DetectionLoss:
         target_mass = torch.zeros(batch_size, self.nc, device=self.device, dtype=dtype)
         b_idx = batch["batch_idx"].long().view(-1)
         c_idx = batch["cls"].long().view(-1)
-        gt_mass_raw = targets[:, 6].view(-1)
+        gt_mass_raw = gt_mass.view(-1).to(dtype)
         flat_indices = b_idx * self.nc + c_idx     # Shape: (N_Objects,)
 
         # 3. Flatten the target map to match
