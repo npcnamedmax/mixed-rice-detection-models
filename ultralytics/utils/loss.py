@@ -340,17 +340,15 @@ class v8DetectionLoss:
             if not torch.isfinite(target_mass).all():
                 raise ValueError("Target Mass contains NaNs or Infs! Check your dataset labels.")
 
-            
-            if torch.rand(1).item() < 0.01 and raw_sum > 0:
-                
-                valid_indices = torch.nonzero(target_mass)
-                if len(valid_indices) > 0:
-                    b, c = valid_indices[0]
-                    print(f"\n[DEBUG] Batch {b} | Class {c}")
-                    print(f"   > GT Raw Mass (from Input): {gt_mass_raw[(b_idx==b) & (c_idx==c)]}")
-                    print(f"   > Target Map Value:         {target_mass[b, c]:.4f}")
-                    print(f"   > Pred Sum Value:           {pred_mass_sum[b, c]:.4f}")
-                    print("-" * 30)
+        
+            valid_indices = torch.nonzero(target_mass)
+            if len(valid_indices) > 0:
+                b, c = valid_indices[0]
+                print(f"\n[DEBUG] Batch {b} | Class {c}")
+                print(f"   > GT Raw Mass (from Input): {gt_mass_raw[(b_idx==b) & (c_idx==c)]}")
+                print(f"   > Target Map Value:         {target_mass[b, c]:.4f}")
+                print(f"   > Pred Sum Value:           {pred_mass_sum[b, c]:.4f}")
+                print("-" * 30)
 
         # -----------------------------------------------------------------------
         
