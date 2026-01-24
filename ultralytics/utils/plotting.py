@@ -794,14 +794,14 @@ def plot_images(
                     color = colors(c)
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
-                        label = f"{c}" if labels else f"{c} {conf[j]:.1f} {masses[j]:.2f}"
+                        label = f"{c} {masses[j]:.2f}g" if labels else f"{c} {conf[j]:.1f} {masses[j]:.2f}g"
                         annotator.box_label(box, label, color=color)
 
             elif len(classes):
                 for c in classes:
                     color = colors(c)
                     c = names.get(c, c) if names else c
-                    label = f"{c}" if labels else f"{c} {conf[0]:.1f}"
+                    label = f"{c} {masses[j]:.2f}g" if labels else f"{c} {conf[0]:.1f} {masses[j]:.2f}g"
                     annotator.text([x, y], label, txt_color=color, box_color=(64, 64, 64, 128))
 
             # Plot keypoints
