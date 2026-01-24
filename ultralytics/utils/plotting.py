@@ -714,10 +714,12 @@ def plot_images(
         - 3 channels: Used as-is (standard RGB)
         - 4+ channels: Cropped to first 3 channels
     """
-    for k in {"cls", "bboxes", "conf", "masks", "keypoints", "batch_idx", "images"}:
+    for k in {"cls", "bboxes", "conf", "masks", "keypoints", "batch_idx", "images", "mass"}:
         if k not in labels:
             continue
         if k == "cls" and labels[k].ndim == 2:
+            labels[k] = labels[k].squeeze(1)  # squeeze if shape is (n, 1)
+        if k == "mass" and labels[k].ndim == 2:
             labels[k] = labels[k].squeeze(1)  # squeeze if shape is (n, 1)
         if isinstance(labels[k], torch.Tensor):
             labels[k] = labels[k].cpu().numpy()
@@ -727,6 +729,7 @@ def plot_images(
     bboxes = labels.get("bboxes", np.zeros(0, dtype=np.float32))
     confs = labels.get("conf", None)
     masks = labels.get("masks", np.zeros(0, dtype=np.uint8))
+    mass = labels["mass"]
     kpts = labels.get("keypoints", np.zeros(0, dtype=np.float32))
     images = labels.get("img", images)  # default to input images
 
@@ -774,6 +777,7 @@ def plot_images(
             classes = cls[idx].astype("int")
             labels = confs is None
             conf = confs[idx] if confs is not None else None  # check for confidence presence (label vs pred)
+            masses = mass[idx].astype("float")
 
             if len(bboxes):
                 boxes = bboxes[idx]
@@ -792,14 +796,14 @@ def plot_images(
                     color = colors(c)
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
-                        label = f"{c}" if labels else f"{c} {conf[j]:.1f}"
+                        label = f"{c} {masses[j]:.2f}g" if labels else f"{c} {conf[j]:.1f} {masses[j]:.2f}g"
                         annotator.box_label(box, label, color=color)
 
             elif len(classes):
                 for c in classes:
                     color = colors(c)
                     c = names.get(c, c) if names else c
-                    label = f"{c}" if labels else f"{c} {conf[0]:.1f}"
+                    label = f"{c} {masses[j]:.2f}g" if labels else f"{c} {conf[0]:.1f} {masses[j]:.2f}g"
                     annotator.text([x, y], label, txt_color=color, box_color=(64, 64, 64, 128))
 
             # Plot keypoints
@@ -850,6 +854,7 @@ def plot_images(
     annotator.im.save(fname)  # save
     if on_plot:
         on_plot(fname)
+
 
 
 @plt_settings()
