@@ -275,7 +275,7 @@ class v8DetectionLoss:
         fg_mask (torch.Tensor)	        Foreground mask with shape (bs, num_total_anchors).
         target_gt_idx (torch.Tensor)	Target ground truth indices with shape (bs, num_total_anchors).
         '''
-        _, target_bboxes, target_scores, fg_mask, target_gt_idx, target_mass, = self.assigner(
+        _, target_bboxes, target_scores, fg_mask = self.assigner(
             # pred_scores.detach().sigmoid() * 0.8 + dfl_conf.unsqueeze(-1) * 0.2,
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
@@ -283,11 +283,77 @@ class v8DetectionLoss:
             gt_labels,
             gt_bboxes,
             mask_gt,
-            gt_mass
         )
 
         target_scores_sum = max(target_scores.sum(), 1)
+        target_mass = torch.zeros(batch_size, self.nc, device=self.device, dtype=dtype)
+        b_idx = batch["batch_idx"].long().view(-1)
+        c_idx = batch["cls"].long().view(-1)
+        gt_mass_raw = targets[:, 6].view(-1)
+        flat_indices = b_idx * self.nc + c_idx     # Shape: (N_Objects,)
 
+        # 3. Flatten the target map to match
+        target_mass_flat = target_mass.view(-1) # Shape: (B * C,)
+
+        # 4. Apply scatter_reduce_ (The Safer Method)
+        # "amax" ensures we take the largest mass label if duplicates exist for the same class/image.
+        # This handles cases where one label might be 0 and another is 500 correctly.
+        target_mass_flat.scatter_reduce_(
+            0, 
+            flat_indices, 
+            gt_mass_raw.to(dtype), 
+            reduce="amax", 
+            include_self=True
+        )
+
+        # 5. Reshape back to (Batch, Class)
+        target_mass = target_mass_flat.view(batch_size, self.nc)
+
+
+        # B. Create Predicted Mass Sum (Batch, Classes)
+        # ------------------------------------------
+        # 1. Clamp and Mask
+        # Only sum mass from anchors that are part of an object (fg_mask)
+        valid_mass_preds = pred_mass.clamp(min=0) * fg_mask.unsqueeze(-1)
+
+        # 2. Sum over Anchors
+        pred_mass_sum = valid_mass_preds.sum(dim=1) # Shape: (Batch, Classes)
+        if True: 
+            
+            assert target_mass.shape == (batch_size, self.nc), \
+                f"Target Mass Map shape mismatch! Expected ({batch_size}, {self.nc}), got {target_mass.shape}"
+            assert pred_mass_sum.shape == (batch_size, self.nc), \
+                f"Pred Mass Sum shape mismatch! Expected ({batch_size}, {self.nc}), got {pred_mass_sum.shape}"
+
+            
+            raw_sum = gt_mass_raw.sum()
+            mapped_sum = target_mass.sum()
+            
+            
+            if raw_sum > 0:
+                assert mapped_sum > 0, \
+                    "CRITICAL ERROR: Input batch has mass labels, but 'target_mass' map is empty! Scatter logic failed."
+            
+           
+            if not torch.isfinite(pred_mass_sum).all():
+                raise ValueError("Pred Mass contains NaNs or Infs! Check your network output.")
+            if not torch.isfinite(target_mass).all():
+                raise ValueError("Target Mass contains NaNs or Infs! Check your dataset labels.")
+
+            
+            if torch.rand(1).item() < 0.01 and raw_sum > 0:
+                
+                valid_indices = torch.nonzero(target_mass)
+                if len(valid_indices) > 0:
+                    b, c = valid_indices[0]
+                    print(f"\n[DEBUG] Batch {b} | Class {c}")
+                    print(f"   > GT Raw Mass (from Input): {gt_mass_raw[(b_idx==b) & (c_idx==c)]}")
+                    print(f"   > Target Map Value:         {target_mass[b, c]:.4f}")
+                    print(f"   > Pred Sum Value:           {pred_mass_sum[b, c]:.4f}")
+                    print("-" * 30)
+
+        # -----------------------------------------------------------------------
+        
         # Cls loss
         # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
@@ -304,7 +370,7 @@ class v8DetectionLoss:
             if mass_mask.sum() > 0:
                 # 1. Clamp predictions to 0. Mass cannot be negative, and log of negative is NaN.
                 #    We use 1e-6 as a tiny buffer just in case, though log1p(0) is safe.
-                pred_safe = pred_mass[mass_mask].clamp(min=0)
+                pred_safe = pred_mass_sum[mass_mask].clamp(min=0)
                 
                 # 2. Apply Log(x + 1) to both Prediction and Target
                 #    We use log1p because it is numerically more stable for small values than log(x+1)
@@ -326,7 +392,7 @@ class v8DetectionLoss:
                 # 3. Calculate MSE between the logs
                 loss[3] = F.l1_loss(
                     pred_safe, 
-                    target_mass[mass_mask], 
+                    target_mass[mass_mask],
                     reduction="sum"
                 ) / target_scores_sum 
             else:
