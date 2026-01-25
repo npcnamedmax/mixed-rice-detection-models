@@ -311,8 +311,10 @@ class v8DetectionLoss:
             active_densities = active_densities.gather(1, _active_labels).clamp(min=0)
             
             _active_target_bboxes = target_bboxes[active_mask]
-            _gt_areas = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
+            _gt_areas_grid = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
                         (_active_target_bboxes[:, 3] - _active_target_bboxes[:, 1])
+            active_strides = stride_tensor[active_mask]
+            _gt_areas = _gt_areas_grid * (active_strides ** 2) #convert to pixels
             _gt_areas = _gt_areas.unsqueeze(-1).clamp(min=1e-6)
 
             # Dimensions for Scatter
