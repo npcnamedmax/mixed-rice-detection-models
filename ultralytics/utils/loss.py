@@ -380,7 +380,7 @@ class v8DetectionLoss:
                 valid_buckets = gt_class_totals > 0
                 
                 if valid_buckets.any():
-                    loss[3] = F.smooth_l1_loss(pred_class_totals[valid_buckets], gt_class_totals[valid_buckets])
+                    loss[3] = F.l1_loss(pred_class_totals[valid_buckets], gt_class_totals[valid_buckets])
                     loss[4] = variances.mean()
                 else:
                     loss[3] = 0.0
