@@ -275,7 +275,7 @@ class v8DetectionLoss:
         fg_mask (torch.Tensor)	        Foreground mask with shape (bs, num_total_anchors).
         target_gt_idx (torch.Tensor)	Target ground truth indices with shape (bs, num_total_anchors).
         '''
-        _, target_bboxes, target_scores, fg_mask, _ = self.assigner(
+        _, target_bboxes, target_scores, fg_mask = self.assigner(
             # pred_scores.detach().sigmoid() * 0.8 + dfl_conf.unsqueeze(-1) * 0.2,
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
