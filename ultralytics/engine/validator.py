@@ -264,7 +264,7 @@ class BaseValidator:
             return stats
 
     def match_predictions(
-        self, pred_classes: torch.Tensor, true_classes: torch.Tensor, iou: torch.Tensor, preds_mass: torch.Tensor, true_mass: torch.Tensor, use_scipy: bool = False
+        self, pred_classes: torch.Tensor, true_classes: torch.Tensor, iou: torch.Tensor, preds_mass: torch.Tensor, true_mass: torch.Tensor, preds_bboxes: torch.Tensor, use_scipy: bool = False
     ) -> torch.Tensor:
         """Match predictions to ground truth objects using IoU.
 
@@ -308,16 +308,22 @@ class BaseValidator:
                         pred_idx = matches[:, 1].astype(int)
                         assert preds_mass is not None
                         assert true_mass is not None
+                        preds_mass = preds_mass.view(-1).cpu() 
+                        true_mass = true_mass.view(-1).cpu()
                         # Extract Mass Values
                         # Ensure they are on CPU/Numpy for calculation
-                        gt_m = true_mass.view(-1)[gt_idx].float().cpu()
+                        pred_box_area = (preds_bboxes[:, 2] - preds_bboxes[:, 0]) * \
+                                        (preds_bboxes[:, 3] - preds_bboxes[:, 1])
+                        
+                        pred_box_area = pred_box_area.cpu()
+                        gt_m = true_mass.view(-1)[gt_idx].float()
                         assert (gt_m != 0).all()
-                        pred_m = preds_mass.view(-1)[pred_idx].float().cpu()
-                        pred_m = torch.log1p(pred_m)
-                        gt_m = torch.log1p(gt_m)
+                        pred_m = preds_mass.view(-1)[pred_idx].float()
+                        pred_box_area = pred_box_area.view(-1)[pred_idx].float()
+                        pred_m = pred_m * pred_box_area
                         errors = torch.abs(gt_m - pred_m)
                         # Store globally
-                        self.mass_errors.extend(errors.tolist()) #MALE
+                        self.mass_errors.extend(errors.tolist()) #MAE
                         
         return torch.tensor(correct, dtype=torch.bool, device=pred_classes.device)
 

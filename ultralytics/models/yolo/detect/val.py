@@ -239,11 +239,17 @@ class DetectionValidator(BaseValidator):
                 self.jdict.extend(jdict)
             self.metrics.stats = merged_stats
             self.seen = len(self.dataloader.dataset)  # total image count from dataset
+            gathered_errors = [None] * dist.get_world_size()
+            dist.gather_object(self.mass_errors, gathered_errors, dst=0)
+            # Flatten list of lists
+            self.mass_errors = [item for sublist in gathered_errors for item in sublist]
         elif RANK > 0:
             dist.gather_object(self.metrics.stats, None, dst=0)
             dist.gather_object(self.jdict, None, dst=0)
+            dist.gather_object(self.mass_errors, None, dst=0)
             self.jdict = []
             self.metrics.clear_stats()
+            self.mass_errors = [] # Clear on workers
 
     def get_stats(self) -> dict[str, Any]:
         """Calculate and return metrics statistics.
@@ -298,7 +304,7 @@ class DetectionValidator(BaseValidator):
         pred_mass = preds.get("mass")
         assert pred_mass is not None
         iou = box_iou(batch["bboxes"][:, :4], preds["bboxes"][:, :4])
-        return {"tp": self.match_predictions(preds["cls"], batch["cls"], iou, preds["mass"], gt_mass).cpu().numpy()}
+        return {"tp": self.match_predictions(preds["cls"], batch["cls"], iou, preds["mass"], gt_mass, preds["bboxes"][:, :4]).cpu().numpy()}
 
     def build_dataset(self, img_path: str, mode: str = "val", batch: int | None = None) -> torch.utils.data.Dataset:
         """Build YOLO Dataset.
