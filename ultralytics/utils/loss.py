@@ -254,7 +254,7 @@ class v8DetectionLoss:
         pred_mass = pred_mass.permute(0, 2, 1).contiguous()
 
         # --- FIX 1: Use pred_mass dtype to ensure consistency for scatter ---
-        dtype = pred_mass.dtype 
+        dtype = torch.float32 
         batch_size = pred_scores.shape[0]
         imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
         anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
@@ -313,7 +313,8 @@ class v8DetectionLoss:
             _active_target_bboxes = target_bboxes[active_mask]
             _gt_areas_grid = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
                         (_active_target_bboxes[:, 3] - _active_target_bboxes[:, 1])
-            active_strides = stride_tensor[active_mask]
+            expanded_strides = stride_tensor.transpose(0, 1).expand(batch_size, -1)
+            active_strides = expanded_strides[active_mask]
             _gt_areas = _gt_areas_grid * (active_strides ** 2) #convert to pixels
             _gt_areas = _gt_areas.unsqueeze(-1).clamp(min=1e-6)
 
@@ -333,9 +334,9 @@ class v8DetectionLoss:
             flat_labels = _active_labels.view(-1).float()
 
             # Accumulate with explicit casting
-            cluster_sums.scatter_add_(0, flat_indices, flat_density) 
+            cluster_sums.scatter_add_(0, flat_indices, flat_density.to(dtype))
             cluster_sq_sums.scatter_add_(0, flat_indices, (flat_density ** 2).to(dtype))
-            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_density)) 
+            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_density, dtype=dtype))
             area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) # Cast to fix error
             class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) # Cast to prevent next error
 
