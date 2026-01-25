@@ -241,9 +241,10 @@ class v8DetectionLoss:
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, batch):
-        """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
-        loss = torch.zeros(3 + 1, device=self.device)  # box, cls, dfl, mass
+        loss = torch.zeros(3 + 2, device=self.device)
         feats = preds[1] if isinstance(preds, tuple) else preds
+        
+        # Split predictions
         pred_distri, pred_scores, pred_mass = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
             (self.reg_max * 4, self.nc, self.nc), 1
         )
@@ -252,31 +253,23 @@ class v8DetectionLoss:
         pred_distri = pred_distri.permute(0, 2, 1).contiguous()
         pred_mass = pred_mass.permute(0, 2, 1).contiguous()
 
-        dtype = pred_scores.dtype
+        # --- FIX 1: Use pred_mass dtype to ensure consistency for scatter ---
+        dtype = pred_mass.dtype 
         batch_size = pred_scores.shape[0]
-        imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]  # image size (h,w)
+        imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]
         anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
 
-        # Targets
+        # Targets processing
         targets = torch.cat((batch["batch_idx"].view(-1, 1), batch["cls"].view(-1, 1), batch["bboxes"]), 1)
         targets = self.preprocess(targets.to(self.device), batch_size, scale_tensor=imgsz[[1, 0, 1, 0]])
-        gt_labels, gt_bboxes, gt_mass = targets.split((1, 4, 1), 2)  # cls, xyxy
+        gt_labels, gt_bboxes, gt_mass = targets.split((1, 4, 1), 2)
         mask_gt = gt_bboxes.sum(2, keepdim=True).gt_(0.0)
 
-        # Pboxes
-        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
-        # dfl_conf = pred_distri.view(batch_size, -1, 4, self.reg_max).detach().softmax(-1)
-        # dfl_conf = (dfl_conf.amax(-1).mean(-1) + dfl_conf.amax(-1).amin(-1)) / 2
+        # Decode boxes
+        pred_bboxes = self.bbox_decode(anchor_points, pred_distri)
 
-        '''
-        target_labels (torch.Tensor)	Target labels with shape (bs, num_total_anchors).
-        target_bboxes (torch.Tensor)	Target bounding boxes with shape (bs, num_total_anchors, 4).
-        target_scores (torch.Tensor)	Target scores with shape (bs, num_total_anchors, num_classes).
-        fg_mask (torch.Tensor)	        Foreground mask with shape (bs, num_total_anchors).
-        target_gt_idx (torch.Tensor)	Target ground truth indices with shape (bs, num_total_anchors).
-        '''
-        _, target_bboxes, target_scores, fg_mask, target_gt_idx, target_mass, = self.assigner(
-            # pred_scores.detach().sigmoid() * 0.8 + dfl_conf.unsqueeze(-1) * 0.2,
+        # Assign targets
+        target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx, target_mass, = self.assigner(
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor,
@@ -288,57 +281,115 @@ class v8DetectionLoss:
 
         target_scores_sum = max(target_scores.sum(), 1)
 
-        # Cls loss
-        # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
-        loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum  # BCE
+        # Standard Losses
+        loss[1] = self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum
         
-        # Bbox loss
         if fg_mask.sum():
             target_bboxes /= stride_tensor
             loss[0], loss[2] = self.bbox_loss(
                 pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores, target_scores_sum, fg_mask
             )
+            
+            # --- Mass Loss Calculation ---
+            active_mask = fg_mask.bool()
 
-            mass_mask = target_mass > 0 # checks if theres any invalid/missing mass labels
+            # 1. Get local object index (0, 1, etc.)
+            local_indices = target_gt_idx[active_mask].long()
+            
+            # 2. Generate batch indices (Keep 2D to match mask shape)
+            # Shape: (Batch_Size, Num_Anchors)
+            batch_idx_map = torch.arange(batch_size, device=self.device).view(-1, 1).repeat(1, anchor_points.shape[0])
+            active_batch_ids = batch_idx_map[active_mask]
+            
+            # 3. Calculate Global Index
+            max_objs = gt_bboxes.shape[1]
+            active_indices = (active_batch_ids * max_objs) + local_indices
+            
+            active_densities = pred_mass[active_mask]
+            _active_labels = target_labels[active_mask].long().unsqueeze(-1)
+            
+            active_densities = active_densities.gather(1, _active_labels).clamp(min=0)
+            
+            _active_target_bboxes = target_bboxes[active_mask]
+            _gt_areas = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
+                        (_active_target_bboxes[:, 3] - _active_target_bboxes[:, 1])
+            _gt_areas = _gt_areas.unsqueeze(-1).clamp(min=1e-6)
 
-            if mass_mask.sum() > 0:
-                # 1. Clamp predictions to 0. Mass cannot be negative, and log of negative is NaN.
-                #    We use 1e-6 as a tiny buffer just in case, though log1p(0) is safe.
-                pred_safe = pred_mass[mass_mask].clamp(min=0)
+            # Dimensions for Scatter
+            num_global_objects = batch_size * max_objs
+            
+            # Initialize accumulators (These inherit dtype from pred_mass)
+            cluster_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+            cluster_sq_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+            cluster_counts = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+            area_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+            class_tracker = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+
+            flat_indices = active_indices.view(-1)
+            flat_density = active_densities.view(-1)
+            flat_areas = _gt_areas.view(-1)
+            flat_labels = _active_labels.view(-1).float()
+
+            # Accumulate with explicit casting
+            cluster_sums.scatter_add_(0, flat_indices, flat_density) 
+            cluster_sq_sums.scatter_add_(0, flat_indices, (flat_density ** 2).to(dtype))
+            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_density)) 
+            area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) # Cast to fix error
+            class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) # Cast to prevent next error
+
+            valid_clusters = cluster_counts > 0
+
+            if valid_clusters.any():
+                means = cluster_sums[valid_clusters] / cluster_counts[valid_clusters]
+                mean_sq = cluster_sq_sums[valid_clusters] / cluster_counts[valid_clusters]
+                variances = (mean_sq - (means ** 2)).clamp(min=0) 
+
+                obj_areas = area_sums[valid_clusters] / cluster_counts[valid_clusters] 
+                pred_obj_mass = means * obj_areas 
+
+                obj_classes = (class_tracker[valid_clusters] / cluster_counts[valid_clusters]).int() 
+
+                # Object -> Batch Mapping
+                valid_global_indices = torch.nonzero(valid_clusters).squeeze(-1)
+                obj_batch_ids = valid_global_indices // max_objs
                 
-                # 2. Apply Log(x + 1) to both Prediction and Target
-                #    We use log1p because it is numerically more stable for small values than log(x+1)
-                #log_pred = torch.log1p(pred_safe)
-                #log_target = torch.log1p(target_mass[mass_mask])
-                '''
-                debug_pred = pred_safe[:5].detach().cpu().numpy().flatten()
-                debug_target = target_mass[mass_mask][:5].detach().cpu().numpy().flatten()
+                num_class_buckets = batch_size * self.nc
+                class_bucket_ids = (obj_batch_ids * self.nc) + obj_classes
                 
-                # 2. Calculate what the loss components would be
-                debug_log_pred = torch.log1p(pred_safe[:5]).detach().cpu().numpy().flatten()
-                debug_log_target = torch.log1p(target_mass[mass_mask][:5]).detach().cpu().numpy().flatten()
-                print(f"\n--- DEBUG EPOCH START ---")
-                print(f"Pred Mass (Raw): {debug_pred}") 
-                print(f"Target Mass (Raw): {debug_target}")
-                print(f"Pred (Log): {debug_log_pred}")
-                print(f"Target (Log): {debug_log_target}")
-                '''
-                # 3. Calculate MSE between the logs
-                loss[3] = F.l1_loss(
-                    pred_safe, 
-                    target_mass[mass_mask], 
-                    reduction="sum"
-                ) / target_scores_sum 
-            else:
-                loss[3] = 0.0
+                pred_class_totals = torch.zeros(num_class_buckets, device=self.device, dtype=dtype)
+                pred_class_totals.scatter_add_(0, class_bucket_ids, pred_obj_mass)
 
-        loss[0] *= self.hyp.box  # box gain
-        loss[1] *= self.hyp.cls  # cls gain
-        loss[2] *= self.hyp.dfl  # dfl gain
+                # GT Totals
+                gt_class_totals = torch.zeros(num_class_buckets, device=self.device, dtype=dtype)
+                
+                flat_gt_mass = gt_mass.view(-1) 
+                flat_gt_labels = gt_labels.view(-1).long()
+                flat_gt_batch_ids = torch.arange(batch_size, device=self.device).repeat_interleave(max_objs)
+                
+                flat_mask_gt = mask_gt.view(-1).bool()
+                
+                if flat_mask_gt.sum() > 0:
+                    active_gt_mass = flat_gt_mass[flat_mask_gt]
+                    active_gt_buckets = (flat_gt_batch_ids[flat_mask_gt] * self.nc) + flat_gt_labels[flat_mask_gt]
+                    
+                    gt_class_totals.scatter_reduce_(0, active_gt_buckets, active_gt_mass.to(dtype), reduce="max", include_self=False)
+
+                valid_buckets = gt_class_totals > 0
+                
+                if valid_buckets.any():
+                    loss[3] = F.smooth_l1_loss(pred_class_totals[valid_buckets], gt_class_totals[valid_buckets])
+                    loss[4] = variances.mean()
+                else:
+                    loss[3] = 0.0
+                    loss[4] = 0.0
+
+        loss[0] *= self.hyp.box
+        loss[1] *= self.hyp.cls
+        loss[2] *= self.hyp.dfl
         loss[3] *= 0.025
-
-        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
-
+        loss[4] *= 0.05
+        
+        return loss.sum() * batch_size, loss.detach()
 
 class v8SegmentationLoss(v8DetectionLoss):
     """Criterion class for computing training losses for YOLOv8 segmentation."""
