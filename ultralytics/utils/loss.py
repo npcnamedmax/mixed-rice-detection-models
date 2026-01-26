@@ -305,10 +305,10 @@ class v8DetectionLoss:
             max_objs = gt_bboxes.shape[1]
             active_indices = (active_batch_ids * max_objs) + local_indices
             
-            active_densities = pred_mass[active_mask]
+            active_mass = pred_mass[active_mask]
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
             
-            active_densities = active_densities.gather(1, _active_labels).clamp(min=0)
+            active_mass = active_mass.gather(1, _active_labels).clamp(min=0)
             
             _active_target_bboxes = target_bboxes[active_mask]
             _gt_areas_grid = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
@@ -325,19 +325,19 @@ class v8DetectionLoss:
             cluster_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             cluster_sq_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             cluster_counts = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
-            area_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
+            #area_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             class_tracker = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
 
             flat_indices = active_indices.view(-1)
-            flat_density = active_densities.view(-1)
+            flat_mass = active_mass.view(-1)
             flat_areas = _gt_areas.view(-1)
             flat_labels = _active_labels.view(-1).float()
 
             # Accumulate with explicit casting
-            cluster_sums.scatter_add_(0, flat_indices, flat_density.to(dtype))
-            cluster_sq_sums.scatter_add_(0, flat_indices, (flat_density ** 2).to(dtype))
-            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_density, dtype=dtype))
-            area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) # Cast to fix error
+            cluster_sums.scatter_add_(0, flat_indices, flat_mass.to(dtype))
+            cluster_sq_sums.scatter_add_(0, flat_indices, (flat_mass ** 2).to(dtype))
+            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_mass, dtype=dtype))
+            #area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) # Cast to fix error
             class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) # Cast to prevent next error
 
             valid_clusters = cluster_counts > 0
@@ -345,10 +345,10 @@ class v8DetectionLoss:
             if valid_clusters.any():
                 means = cluster_sums[valid_clusters] / cluster_counts[valid_clusters]
                 mean_sq = cluster_sq_sums[valid_clusters] / cluster_counts[valid_clusters]
-                variances = (mean_sq - (means ** 2)).clamp(min=0) 
+                variances = (mean_sq - (means ** 2)).clamp(min=1e-6) 
 
-                obj_areas = area_sums[valid_clusters] / cluster_counts[valid_clusters] 
-                pred_obj_mass = means * obj_areas 
+                #obj_areas = area_sums[valid_clusters] / cluster_counts[valid_clusters] 
+                #pred_obj_mass = means * obj_areas 
 
                 obj_classes = (class_tracker[valid_clusters] / cluster_counts[valid_clusters]).int() 
 
@@ -360,7 +360,7 @@ class v8DetectionLoss:
                 class_bucket_ids = (obj_batch_ids * self.nc) + obj_classes
                 
                 pred_class_totals = torch.zeros(num_class_buckets, device=self.device, dtype=dtype)
-                pred_class_totals.scatter_add_(0, class_bucket_ids, pred_obj_mass)
+                pred_class_totals.scatter_add_(0, class_bucket_ids, means)
 
                 # GT Totals
                 gt_class_totals = torch.zeros(num_class_buckets, device=self.device, dtype=dtype)
@@ -381,7 +381,7 @@ class v8DetectionLoss:
                 
                 if valid_buckets.any():
                     loss[3] = F.l1_loss(pred_class_totals[valid_buckets], gt_class_totals[valid_buckets])
-                    loss[4] = variances.mean()
+                    loss[4] = torch.sqrt(variances.mean())
                 else:
                     loss[3] = 0.0
                     loss[4] = 0.0
@@ -389,7 +389,7 @@ class v8DetectionLoss:
         loss[0] *= self.hyp.box
         loss[1] *= self.hyp.cls
         loss[2] *= self.hyp.dfl
-        loss[3] *= 0.025
+        loss[3] *= 2.8
         loss[4] *= 0.05
         
         return loss.sum() * batch_size, loss.detach()

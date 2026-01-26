@@ -308,7 +308,7 @@ class Detect(nn.Module):
         for a, b, c, s in zip(m.cv2, m.cv3, m.cv4, m.stride):  
             a[-1].bias.data[:] = 1.0  # box
             b[-1].bias.data[: m.nc] = math.log(5 / m.nc / (640 / s) ** 2)  # cls (.01 objects, 80 classes, 640 img)
-            c[-1].bias.data[:] = 0.001 # set bias for mass in conv2d layer of cv4 
+            c[-1].bias.data[:] = 100 # set bias for mass in conv2d layer of cv4 
 
     def decode_bboxes(self, bboxes, anchors, xywh=True):
         """Decode bounding boxes."""
