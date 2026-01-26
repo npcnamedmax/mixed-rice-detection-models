@@ -1055,7 +1055,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         self.nt_per_class = None
         self.nt_per_image = None
-        self.mass_mape = 0.0
+        self.mass_mae = 0.0
 
     def update_stats(self, stat: dict[str, Any]) -> None:
         """Update statistics by appending new values to existing stat collections.
@@ -1111,7 +1111,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
-        return [*self.box.mean_results(), self.mass_mape]
+        return [*self.box.mean_results(), self.mass_mae]
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return the result of evaluating the performance of an object detection model on a specific class."""
@@ -1130,12 +1130,12 @@ class DetMetrics(SimpleClass, DataExportMixin):
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
         x = res
-        y = self.mass_mape
-        z = (1.0 / (1.0 + self.mass_mape))
+        y = self.mass_mae
+        z = (1.0 / (1.0 + self.mass_mae))
         print("res is " , res, " mass_mape is ", y, " inverse is ", z)
         res = (0.7 * res) + (0.3 * z)
         return res
-        #print("MASS MAAPE HERE:   " , self.mass_mape)
+       
         '''
         # Conditional Logic
         if res < 0.7: # If mAP is below 0.5

@@ -60,7 +60,7 @@ class DetectionValidator(BaseValidator):
         self.niou = self.iouv.numel()
         self.metrics = DetMetrics()
         self.mass_errors=[]
-        self.mass_mape = 0
+        self.mass_mae = 0
 
     def preprocess(self, batch: dict[str, Any]) -> dict[str, Any]:
         """Preprocess batch of images for YOLO validation.
@@ -259,9 +259,9 @@ class DetectionValidator(BaseValidator):
         """
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
-        self.mass_mape = np.mean(self.mass_errors)
+        self.mass_mae = np.mean(self.mass_errors)
         self.mass_errors = []
-        self.metrics.mass_mape = self.mass_mape
+        self.metrics.mass_mape = self.mass_mae
         return self.metrics.results_dict
 
     def print_results(self) -> None:

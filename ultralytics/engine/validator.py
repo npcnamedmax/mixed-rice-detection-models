@@ -312,15 +312,11 @@ class BaseValidator:
                         true_mass = true_mass.view(-1).cpu()
                         # Extract Mass Values
                         # Ensure they are on CPU/Numpy for calculation
-                        pred_box_area = (preds_bboxes[:, 2] - preds_bboxes[:, 0]) * \
-                                        (preds_bboxes[:, 3] - preds_bboxes[:, 1])
                         
-                        pred_box_area = pred_box_area.cpu()
-                        gt_m = true_mass.view(-1)[gt_idx].float()
+                        gt_m = true_mass[gt_idx].float()
                         assert (gt_m != 0).all()
-                        pred_m = preds_mass.view(-1)[pred_idx].float()
-                        pred_box_area = pred_box_area.view(-1)[pred_idx].float()
-                        pred_m = pred_m * pred_box_area
+                        pred_m = preds_mass[pred_idx].float()
+                        
                         errors = torch.abs(gt_m - pred_m)
                         # Store globally
                         self.mass_errors.extend(errors.tolist()) #MAE
