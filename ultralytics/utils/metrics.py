@@ -1107,7 +1107,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
     @property
     def keys(self) -> list[str]:
         """Return a list of keys for accessing specific metrics."""
-        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)", "metrics/mass_MAPE"]
+        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)", "metrics/mass_MAE"]
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
@@ -1278,7 +1278,7 @@ class SegmentMetrics(DetMetrics):
             "metrics/recall(M)",
             "metrics/mAP50(M)",
             "metrics/mAP50-95(M)",
-            "metrics/mass_MAPE"
+            "metrics/mass_MAE"
         ]
 
     def mean_results(self) -> list[float]:
