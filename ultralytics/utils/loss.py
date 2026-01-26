@@ -390,13 +390,10 @@ class v8DetectionLoss:
         loss[1] *= self.hyp.cls
         loss[2] *= self.hyp.dfl
         loss[3] *= 0.025
-        var_gain = 0
-        if loss[3] < 0.4:
-            var_gain = 0.2
-        elif loss[3] < 0.5:
-            var_gain = 0.02
-        elif loss[3] < 0.7:
-            var_gain = 0.01 # can swithc to use fc
+
+        x = loss[3].detach()
+        var_gain = (2.1 ** -(x + 0.45)) - 0.47
+        var_gain = var_gain.clamp(min=0.0, max=0.15)
         loss[4] *= var_gain
         
         return loss.sum() * batch_size, loss.detach()
