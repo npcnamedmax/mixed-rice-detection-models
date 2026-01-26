@@ -390,7 +390,7 @@ class v8DetectionLoss:
         loss[1] *= self.hyp.cls
         loss[2] *= self.hyp.dfl
         loss[3] *= 0.025
-        loss[4] *= 0.05
+        loss[4] *= 0.4
         
         return loss.sum() * batch_size, loss.detach()
 
