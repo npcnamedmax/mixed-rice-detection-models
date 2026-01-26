@@ -301,9 +301,9 @@ class v8DetectionLoss:
             batch_idx_map = torch.arange(batch_size, device=self.device).view(-1, 1).repeat(1, anchor_points.shape[0])
             active_batch_ids = batch_idx_map[active_mask]
             
-            # 3. Calculate Global Index
-            max_objs = gt_bboxes.shape[1]
-            active_indices = (active_batch_ids * max_objs) + local_indices
+           
+            max_objs = gt_bboxes.shape[1] #max number of objects detectable (total num of anchors)
+            active_indices = (active_batch_ids * max_objs) + local_indices #offset by each batch, each batch has max_objs anchors/detectable objs
             
             active_mass = pred_mass[active_mask]
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
@@ -320,7 +320,7 @@ class v8DetectionLoss:
 
             # Dimensions for Scatter
             num_global_objects = batch_size * max_objs
-            
+            #clusters here mean bags
             # Initialize accumulators (These inherit dtype from pred_mass)
             cluster_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             cluster_sq_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
@@ -336,28 +336,27 @@ class v8DetectionLoss:
             # Accumulate with explicit casting
             cluster_sums.scatter_add_(0, flat_indices, flat_mass.to(dtype))
             cluster_sq_sums.scatter_add_(0, flat_indices, (flat_mass ** 2).to(dtype))
-            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_mass, dtype=dtype))
-            #area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) # Cast to fix error
-            class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) # Cast to prevent next error
-
+            cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_mass, dtype=dtype)) #adds 1 to ith based on flat_indices
+            #area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) 
+            class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) #add class_id to class n times, where n is number of instances of class in a batch, for each batch
             valid_clusters = cluster_counts > 0
 
             if valid_clusters.any():
                 means = cluster_sums[valid_clusters] / cluster_counts[valid_clusters]
                 mean_sq = cluster_sq_sums[valid_clusters] / cluster_counts[valid_clusters]
-                variances = (mean_sq - (means ** 2)).clamp(min=1e-6) 
+                variances = (mean_sq - (means ** 2)).clamp(min=1e-6) #sum of (x^2 / n) - mean^2 
 
                 #obj_areas = area_sums[valid_clusters] / cluster_counts[valid_clusters] 
                 #pred_obj_mass = means * obj_areas 
 
-                obj_classes = (class_tracker[valid_clusters] / cluster_counts[valid_clusters]).int() 
+                obj_classes = (class_tracker[valid_clusters] / cluster_counts[valid_clusters]).int() #convert back to ori class_id
 
                 # Object -> Batch Mapping
                 valid_global_indices = torch.nonzero(valid_clusters).squeeze(-1)
                 obj_batch_ids = valid_global_indices // max_objs
                 
                 num_class_buckets = batch_size * self.nc
-                class_bucket_ids = (obj_batch_ids * self.nc) + obj_classes
+                class_bucket_ids = (obj_batch_ids * self.nc) + obj_classes #align relative to offset
                 
                 pred_class_totals = torch.zeros(num_class_buckets, device=self.device, dtype=dtype)
                 pred_class_totals.scatter_add_(0, class_bucket_ids, means)
