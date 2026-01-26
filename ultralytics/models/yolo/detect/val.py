@@ -260,6 +260,7 @@ class DetectionValidator(BaseValidator):
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
         self.mass_mae = np.mean(self.mass_errors)
+        print("MASS MAE IN GET STATS IS " , self.mass_mae)
         self.mass_errors = []
         self.metrics.mass_mape = self.mass_mae
         return self.metrics.results_dict
