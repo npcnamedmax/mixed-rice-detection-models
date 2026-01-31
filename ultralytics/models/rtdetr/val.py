@@ -177,6 +177,7 @@ class RTDETRValidator(DetectionValidator):
         bs, _, nd = preds[0].shape
         nc = self.nc
         bboxes, scores, masses = preds[0].split((4, nd - 4 - nc, nc), dim=-1)
+        masses = masses.relu()
         bboxes *= self.args.imgsz
         outputs = [torch.zeros((0, 7), device=bboxes.device)] * bs
         for i, bbox in enumerate(bboxes):  # (300, 4)
