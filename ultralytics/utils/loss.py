@@ -308,15 +308,9 @@ class v8DetectionLoss:
             active_mass = pred_mass[active_mask]
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
             
-            active_mass = active_mass.gather(1, _active_labels).clamp(min=0)
+            active_mass = active_mass.gather(1, _active_labels)
             
-            _active_target_bboxes = target_bboxes[active_mask]
-            _gt_areas_grid = (_active_target_bboxes[:, 2] - _active_target_bboxes[:, 0]) * \
-                        (_active_target_bboxes[:, 3] - _active_target_bboxes[:, 1])
-            expanded_strides = stride_tensor.transpose(0, 1).expand(batch_size, -1)
-            active_strides = expanded_strides[active_mask]
-            _gt_areas = _gt_areas_grid * (active_strides ** 2) #convert to pixels
-            _gt_areas = _gt_areas.unsqueeze(-1).clamp(min=1e-6)
+            
 
             # Dimensions for Scatter
             num_global_objects = batch_size * max_objs
@@ -330,7 +324,7 @@ class v8DetectionLoss:
 
             flat_indices = active_indices.view(-1)
             flat_mass = active_mass.view(-1)
-            flat_areas = _gt_areas.view(-1)
+            
             flat_labels = _active_labels.view(-1).float()
 
             # Accumulate with explicit casting

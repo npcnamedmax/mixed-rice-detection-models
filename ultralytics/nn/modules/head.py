@@ -297,7 +297,7 @@ class Detect(nn.Module):
         else:
             dbox = self.decode_bboxes(self.dfl(box), self.anchors.unsqueeze(0)) * self.strides # gets boxes in xywh format after dfl conversion to single ltrb values
 
-        return torch.cat((dbox, cls.sigmoid(), mass.relu()), 1) # concats each box (xywh) tgt with its cls probs and mass
+        return torch.cat((dbox, cls.sigmoid(), mass), 1) # concats each box (xywh) tgt with its cls probs and mass
 
     def bias_init(self):
         """Initialize Detect() biases, WARNING: requires stride availability."""
