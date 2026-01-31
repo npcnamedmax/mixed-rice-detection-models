@@ -60,7 +60,7 @@ class DetectionValidator(BaseValidator):
         self.niou = self.iouv.numel()
         self.metrics = DetMetrics()
         self.mass_errors=[]
-        self.mass_mape = 0
+        self.mass_mae = 0
 
     def preprocess(self, batch: dict[str, Any]) -> dict[str, Any]:
         """Preprocess batch of images for YOLO validation.
@@ -239,11 +239,17 @@ class DetectionValidator(BaseValidator):
                 self.jdict.extend(jdict)
             self.metrics.stats = merged_stats
             self.seen = len(self.dataloader.dataset)  # total image count from dataset
+            gathered_errors = [None] * dist.get_world_size()
+            dist.gather_object(self.mass_errors, gathered_errors, dst=0)
+            # Flatten list of lists
+            self.mass_errors = [item for sublist in gathered_errors for item in sublist]
         elif RANK > 0:
             dist.gather_object(self.metrics.stats, None, dst=0)
             dist.gather_object(self.jdict, None, dst=0)
+            dist.gather_object(self.mass_errors, None, dst=0)
             self.jdict = []
             self.metrics.clear_stats()
+            self.mass_errors = [] # Clear on workers
 
     def get_stats(self) -> dict[str, Any]:
         """Calculate and return metrics statistics.
@@ -253,9 +259,9 @@ class DetectionValidator(BaseValidator):
         """
         self.metrics.process(save_dir=self.save_dir, plot=self.args.plots, on_plot=self.on_plot)
         self.metrics.clear_stats()
-        self.mass_mape = np.mean(self.mass_errors)
+        self.mass_mae = np.mean(self.mass_errors)
         self.mass_errors = []
-        self.metrics.mass_mape = self.mass_mape
+        self.metrics.mass_mae = self.mass_mae
         return self.metrics.results_dict
 
     def print_results(self) -> None:

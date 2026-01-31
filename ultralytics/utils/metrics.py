@@ -1055,7 +1055,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
         self.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
         self.nt_per_class = None
         self.nt_per_image = None
-        self.mass_mape = 0.0
+        self.mass_mae = 0.0
 
     def update_stats(self, stat: dict[str, Any]) -> None:
         """Update statistics by appending new values to existing stat collections.
@@ -1107,11 +1107,11 @@ class DetMetrics(SimpleClass, DataExportMixin):
     @property
     def keys(self) -> list[str]:
         """Return a list of keys for accessing specific metrics."""
-        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)", "metrics/mass_MAPE"]
+        return ["metrics/precision(B)", "metrics/recall(B)", "metrics/mAP50(B)", "metrics/mAP50-95(B)", "metrics/mass_MAE"]
 
     def mean_results(self) -> list[float]:
         """Calculate mean of detected objects & return precision, recall, mAP50, and mAP50-95."""
-        return [*self.box.mean_results(), self.mass_mape]
+        return [*self.box.mean_results(), self.mass_mae]
 
     def class_result(self, i: int) -> tuple[float, float, float, float]:
         """Return the result of evaluating the performance of an object detection model on a specific class."""
@@ -1130,12 +1130,12 @@ class DetMetrics(SimpleClass, DataExportMixin):
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
         x = res
-        y = self.mass_mape
-        z = (1.0 / (1.0 + self.mass_mape))
-        print("res is " , res, " mass_mape is ", y, " inverse is ", z)
+        y = self.mass_mae
+        z = (1.0 / (1.0 + self.mass_mae))
+        print("res is " , res, " mass_mae is ", y, " inverse is ", z)
         res = (0.7 * res) + (0.3 * z)
         return res
-        #print("MASS MAAPE HERE:   " , self.mass_mape)
+        
         '''
         # Conditional Logic
         if res < 0.7: # If mAP is below 0.5
@@ -1144,7 +1144,7 @@ class DetMetrics(SimpleClass, DataExportMixin):
             # If mAP is good, focus on Mass.
             # We start with a base of 10.0 so these models are always "Better" than bad-detection models
             # We ADD (1 - Error) because we want Error to be small.
-            return 10.0 + (1 / (1.0 + self.mass_mape))
+            
         '''
 
     @property
@@ -1277,7 +1277,7 @@ class SegmentMetrics(DetMetrics):
             "metrics/recall(M)",
             "metrics/mAP50(M)",
             "metrics/mAP50-95(M)",
-            "metrics/mass_MAPE"
+            "metrics/mass_MAE"
         ]
 
     def mean_results(self) -> list[float]:
