@@ -173,8 +173,7 @@ class DETRLoss(nn.Module):
             loss[name_mass] = torch.tensor(0.0, device=self.device)
         else:
             matched_preds = pred_mass[indices]
-            selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1)
-            safe_preds = selected_preds.relu() 
+            #selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1)
             '''
             sample_pred = safe_preds[:5].detach().cpu().numpy().flatten()
             sample_gt = target_mass[:5].detach().cpu().numpy().flatten()
@@ -185,7 +184,7 @@ class DETRLoss(nn.Module):
             #pred = torch.log1p(safe_preds)
             #gt = torch.log1p(target_mass)
             #loss[name_mass] = self.loss_gain["mass"] * F.smooth_l1_loss(gt, pred, reduction="sum") / len(target_mass)
-            loss[name_mass] = 0.05 * F.l1_loss(safe_preds, target_mass, reduction="sum") / len(target_mass)
+            loss[name_mass] = 0.05 * F.l1_loss(matched_preds, target_mass, reduction="sum") / len(target_mass)
 
         return loss
     
