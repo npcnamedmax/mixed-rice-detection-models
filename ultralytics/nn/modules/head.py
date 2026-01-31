@@ -1084,7 +1084,7 @@ class RTDETRDecoder(nn.Module):
         if self.training:
             return x
         # (bs, 300, 4+nc)
-        y = torch.cat((dec_bboxes.squeeze(0), dec_scores.squeeze(0).sigmoid(), dec_mass.squeeze(0).relu()), -1)
+        y = torch.cat((dec_bboxes.squeeze(0), dec_scores.squeeze(0).sigmoid(), dec_mass.squeeze(0)), -1)
         return y if self.export else (y, x)
 
     @staticmethod
