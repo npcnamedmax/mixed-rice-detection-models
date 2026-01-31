@@ -278,6 +278,10 @@ def get_cdn_group(
         dn_bbox = xyxy2xywh(known_bbox)
         dn_bbox = torch.logit(dn_bbox, eps=1e-6)  # inverse sigmoid
 
+        mass_noise = torch.rand_like(dn_mass) * 2.0 - 1.0 # [-1, 1)
+        dn_mass = dn_mass * (1.0 + mass_noise * 0.1 * box_noise_scale) 
+        dn_mass = dn_mass.clamp(min=0.0)
+
     num_dn = int(max_nums * 2 * num_group)  # total denoising queries
     dn_cls_embed = class_embed[dn_cls]  # bs*num * 2 * num_group, 256
     padding_cls = torch.zeros(bs, num_dn, dn_cls_embed.shape[-1], device=gt_cls.device)
