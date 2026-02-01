@@ -246,7 +246,7 @@ class v8DetectionLoss:
         
         # Split predictions
         pred_distri, pred_scores, pred_mass = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
-            (self.reg_max * 4, self.nc, self.nc), 1
+            (self.reg_max * 4, self.nc, 1), 1
         )
 
         pred_scores = pred_scores.permute(0, 2, 1).contiguous()
@@ -269,7 +269,7 @@ class v8DetectionLoss:
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)
 
         # Assign targets
-        target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx, target_mass, = self.assigner(
+        target_labels, target_bboxes, target_scores, fg_mask, target_gt_idx, _, = self.assigner(
             pred_scores.detach().sigmoid(),
             (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
             anchor_points * stride_tensor,
@@ -307,8 +307,6 @@ class v8DetectionLoss:
             
             active_mass = pred_mass[active_mask]
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
-            
-            active_mass = active_mass.gather(1, _active_labels)
             
             
 

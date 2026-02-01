@@ -75,7 +75,7 @@ class TaskAlignedAssigner(nn.Module):
                 torch.zeros_like(pd_scores),
                 torch.zeros_like(pd_scores[..., 0]),
                 torch.zeros_like(pd_scores[..., 0]),
-                torch.zeros_like(pd_scores) #same shape as score
+                torch.zeros_like(pd_scores[..., 0]) #same shape as score
             )
 
         try:
@@ -264,18 +264,12 @@ class TaskAlignedAssigner(nn.Module):
         )  # (b, h*w, 80)
         target_scores.scatter_(2, target_labels.unsqueeze(-1), 1) # assign one to the correct class
 
-        mass_correct_format = gt_mass.view(-1, gt_mass.shape[-1])[target_gt_idx] # (bs, h*w, 1)
-
-        target_mass = torch.zeros(
-            (target_labels.shape[0], target_labels.shape[1], self.num_classes),
-            dtype=torch.float32,
-            device=target_labels.device,
-        )  # (b, h*w, 80)
-        target_mass.scatter_(2, target_labels.unsqueeze(-1), mass_correct_format) # assign mass to the correct class
+        target_mass = gt_mass.view(-1, 1)[target_gt_idx] # (bs, h*w, 1)
+        
 
         fg_scores_mask = fg_mask[:, :, None].repeat(1, 1, self.num_classes)  # (b, h*w, 80)
         target_scores = torch.where(fg_scores_mask > 0, target_scores, 0)
-        target_mass = torch.where(fg_scores_mask > 0, target_mass, 0)
+        target_mass = torch.where(fg_mask[:, :, None] > 0, target_mass, 0.0)
         return target_labels, target_bboxes, target_scores, target_mass
 
     def select_candidates_in_gts(self, xy_centers, gt_bboxes, eps=1e-9):

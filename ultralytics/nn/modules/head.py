@@ -227,7 +227,7 @@ class Detect(nn.Module):
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
         self.reg_max = 16  # DFL channels (ch[0] // 16 to scale 4/8/12/16/20 for n/s/m/l/x)
-        self.no = 2 * nc + self.reg_max * 4  # number of outputs per anchor (add channel-wise mass)
+        self.no = nc + self.reg_max * 4 + 1  # number of outputs per anchor (add channel-wise mass)
         self.stride = torch.zeros(self.nl)  # strides computed during build
         c2, c3, c4 = max((16, ch[0] // 4, self.reg_max * 4)), max(ch[0], min(self.nc, 100)), max(ch[0], min(self.nc, 100))  # channels
         self.cv2 = nn.ModuleList(
@@ -242,7 +242,7 @@ class Detect(nn.Module):
             for x in ch
         )
         self.cv4 = nn.ModuleList(
-            nn.Sequential(Conv(x, c4, 3), Conv(c4, c4, 3), nn.Conv2d(c4, self.nc, 1)) for x in ch
+            nn.Sequential(Conv(x, c4, 3), Conv(c4, c4, 3), nn.Conv2d(c4, 1, 1)) for x in ch
         )
         
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
@@ -275,7 +275,7 @@ class Detect(nn.Module):
             cls = x_cat[:, self.reg_max * 4 : self.reg_max * 4 + self.nc]
             mass = x_cat[:, self.reg_max * 4 + self.nc :]
         else:
-            box, cls, mass = x_cat.split((self.reg_max * 4, self.nc, self.nc), 1) # splits to get bbox dfl/distribution features of bbox in (ltrb) format and cls probs
+            box, cls, mass = x_cat.split((self.reg_max * 4, self.nc, 1), 1) # splits to get bbox dfl/distribution features of bbox in (ltrb) format and cls probs
         
         '''
         max_cls_idx = cls.argmax(dim=1, keepdim=True) # gets the max idx of max cls prob
