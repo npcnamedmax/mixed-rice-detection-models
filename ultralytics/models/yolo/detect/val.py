@@ -125,8 +125,14 @@ class DetectionValidator(BaseValidator):
             end2end=self.end2end,
             rotated=self.args.task == "obb",
         )
+        for x in outputs:
+            assert x.shape[1] == 8
+            alpha = 0.5
+            x[:, -2] = (alpha * x[:, -1]) + ((1 - alpha) * x[:, -2])
+            x[:, -2] = x[:, -2].relu()
+            x = x[:, :-1]
 
-        return [{"bboxes": x[:, :4], "conf": x[:, 4], "cls": x[:, 5], "mass": x[:, 6].relu()} for x in outputs]
+        return [{"bboxes": x[:, :4], "conf": x[:, 4], "cls": x[:, 5], "mass": x[:, 6]} for x in outputs]
 
     def _prepare_batch(self, si: int, batch: dict[str, Any]) -> dict[str, Any]:
         """Prepare a batch of images and annotations for validation.

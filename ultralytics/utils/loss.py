@@ -246,7 +246,7 @@ class v8DetectionLoss:
         
         # Split predictions
         pred_distri, pred_scores, pred_mass = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
-            (self.reg_max * 4, self.nc, self.nc), 1
+            (self.reg_max * 4, self.nc, self.nc + 1), 1
         )
 
         pred_scores = pred_scores.permute(0, 2, 1).contiguous()
@@ -306,16 +306,19 @@ class v8DetectionLoss:
             active_indices = (active_batch_ids * max_objs) + local_indices #offset by each batch, each batch has max_objs anchors/detectable objs
             
             active_mass = pred_mass[active_mask]
+            active_mass_agnostic = active_mass[:, -1:]
+            active_mass = active_mass[:, :-1]
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
             
             active_mass = active_mass.gather(1, _active_labels)
-            
+            alpha=0.5
+            active_mass = (alpha*active_mass_agnostic) + ((1-alpha)*active_mass)
             
 
             # Dimensions for Scatter
             num_global_objects = batch_size * max_objs
             #clusters here mean bags
-            # Initialize accumulators (These inherit dtype from pred_mass)
+            
             cluster_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             cluster_sq_sums = torch.zeros(num_global_objects, device=self.device, dtype=dtype)
             cluster_counts = torch.zeros(num_global_objects, device=self.device, dtype=dtype)

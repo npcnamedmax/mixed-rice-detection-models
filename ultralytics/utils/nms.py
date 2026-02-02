@@ -66,10 +66,10 @@ def non_max_suppression(
     
 
     bs = prediction.shape[0]  # batch size (BCN, i.e. 1,84,6300)
-    nc = nc or ((prediction.shape[1] - 4) // 2)  # number of classes
+    nc = nc or ((prediction.shape[1] - 5) // 2)  # number of classes
     # extra = prediction.shape[1] - nc - 4  # number of extra info
     mi = 4 + nc  # mask start index
-    nm = prediction.shape[1] - (2 * nc) - 4
+    nm = prediction.shape[1] - (2 * nc) - 5
     xc = prediction[:, 4:mi].amax(1) > conf_thres  # candidates
     xinds = torch.arange(prediction.shape[-1], device=prediction.device).expand(bs, -1)[..., None]  # to track idxs
 
@@ -96,7 +96,7 @@ def non_max_suppression(
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]) and not rotated:
             lb = labels[xi]
-            v = torch.zeros((len(lb), (2*nc) + nm + 4), device=x.device)
+            v = torch.zeros((len(lb), (2*nc) + nm + 5), device=x.device)
             v[:, :4] = xywh2xyxy(lb[:, 1:5])  # box
             v[range(len(lb)), lb[:, 0].long() + 4] = 1.0  # cls
             x = torch.cat((x, v), 0)
@@ -106,7 +106,7 @@ def non_max_suppression(
             continue
 
         # Detections matrix nx6 (xyxy, conf, cls)
-        box, cls, mask, mass = x.split((4, nc, nm, nc), 1)
+        box, cls, mask, mass = x.split((4, nc, nm, nc + 1), 1)
 
         if multi_label:
             i, j = torch.where(cls > conf_thres)
