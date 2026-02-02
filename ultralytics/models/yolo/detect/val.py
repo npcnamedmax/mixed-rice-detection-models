@@ -119,7 +119,7 @@ class DetectionValidator(BaseValidator):
             self.args.conf,
             self.args.iou,
             nc=0 if self.args.task == "detect" else self.nc,
-            multi_label=True,
+            multi_label=False,
             agnostic=self.args.single_cls or self.args.agnostic_nms,
             max_det=self.args.max_det,
             end2end=self.end2end,
