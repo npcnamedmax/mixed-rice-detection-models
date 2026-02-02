@@ -176,15 +176,20 @@ class RTDETRValidator(DetectionValidator):
 
         bs, _, nd = preds[0].shape
         nc = self.nc
-        bboxes, scores, masses = preds[0].split((4, nd - 4 - nc, nc), dim=-1)
+        bboxes, scores, masses = preds[0].split((4, nd - 5 - nc, nc+1), dim=-1)
         masses = masses.relu()
         bboxes *= self.args.imgsz
         outputs = [torch.zeros((0, 7), device=bboxes.device)] * bs
         for i, bbox in enumerate(bboxes):  # (300, 4)
             bbox = ops.xywh2xyxy(bbox)
             score, cls = scores[i].max(-1)  # (300, )
-            selected_mass = torch.gather(masses[i], dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
-            pred = torch.cat([bbox, score[..., None], cls[..., None], selected_mass[..., None]], dim=-1)  # filter
+            specific_masses = masses[i][..., :-1]  # The first NC channels
+            agnostic_mass   = masses[i][..., -1:]  # The last 1 channel
+            selected_mass = torch.gather(specific_masses, dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
+            alpha = 0.5
+            final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
+            #selected_mass = torch.gather(masses[i], dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
+            pred = torch.cat([bbox, score[..., None], cls[..., None], final_mass[..., None]], dim=-1)  # filter
             # Sort by confidence to correctly get internal metrics
             pred = pred[score.argsort(descending=True)]
             outputs[i] = pred[score > self.args.conf]

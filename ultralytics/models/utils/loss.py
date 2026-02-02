@@ -173,7 +173,12 @@ class DETRLoss(nn.Module):
             loss[name_mass] = torch.tensor(0.0, device=self.device)
         else:
             matched_preds = pred_mass[indices]
-            selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1) 
+            specific_masses = matched_preds[..., :-1]  # The first NC channels
+            agnostic_mass   = matched_preds[..., -1:]  # The last 1 channel
+            selected_mass = torch.gather(specific_masses, dim=-1, index=target_class.view(-1, 1))
+            alpha=0.5
+            final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
+            #selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1) 
             '''
             sample_pred = safe_preds[:5].detach().cpu().numpy().flatten()
             sample_gt = target_mass[:5].detach().cpu().numpy().flatten()
@@ -184,7 +189,7 @@ class DETRLoss(nn.Module):
             #pred = torch.log1p(safe_preds)
             #gt = torch.log1p(target_mass)
             #loss[name_mass] = self.loss_gain["mass"] * F.smooth_l1_loss(gt, pred, reduction="sum") / len(target_mass)
-            loss[name_mass] = 0.06 * F.l1_loss(selected_preds, target_mass, reduction="sum") / len(target_mass)
+            loss[name_mass] = 0.06 * F.l1_loss(final_mass.squeeze(-1), target_mass, reduction="sum") / len(target_mass)
 
         return loss
     

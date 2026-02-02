@@ -1028,12 +1028,12 @@ class RTDETRDecoder(nn.Module):
         self.enc_output = nn.Sequential(nn.Linear(hd, hd), nn.LayerNorm(hd))
         self.enc_score_head = nn.Linear(hd, nc)
         self.enc_bbox_head = MLP(hd, hd, 4, num_layers=3)
-        self.enc_mass_head = MLP(hd, hd, nc, num_layers=3)
+        self.enc_mass_head = MLP(hd, hd, nc+1, num_layers=3)
 
         # Decoder head
         self.dec_score_head = nn.ModuleList([nn.Linear(hd, nc) for _ in range(ndl)])
         self.dec_bbox_head = nn.ModuleList([MLP(hd, hd, 4, num_layers=3) for _ in range(ndl)])
-        self.dec_mass_head = nn.ModuleList([MLP(hd, hd, nc, num_layers=3) for _ in range(ndl)])
+        self.dec_mass_head = nn.ModuleList([MLP(hd, hd, nc+1, num_layers=3) for _ in range(ndl)])
 
         self._reset_parameters()
 
@@ -1182,7 +1182,7 @@ class RTDETRDecoder(nn.Module):
         # Prepare input for decoder
         features = self.enc_output(self.valid_mask * feats)  # bs, h*w, 256
         enc_outputs_scores = self.enc_score_head(features)  # (bs, h*w, nc)
-        enc_outputs_mass = self.enc_mass_head(features) # (bs, h*w, nc)
+        enc_outputs_mass = self.enc_mass_head(features) # (bs, h*w, nc+1)
         # Query selection 
         # (bs*num_queries,)
         topk_ind = torch.topk(enc_outputs_scores.max(-1).values, self.num_queries, dim=1).indices.view(-1)

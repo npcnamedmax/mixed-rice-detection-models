@@ -315,7 +315,7 @@ class BaseValidator:
                         pred_m = preds_mass.view(-1)[pred_idx].float().cpu()
                         errors = torch.abs(gt_m - pred_m)
                         # Store globally
-                        self.mass_errors.extend(errors.tolist()) #MALE
+                        self.mass_errors.extend(errors.tolist()) #MAE
                         
         return torch.tensor(correct, dtype=torch.bool, device=pred_classes.device)
 

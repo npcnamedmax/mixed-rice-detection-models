@@ -56,7 +56,7 @@ class RTDETRPredictor(BasePredictor):
             nc = self.model.model.nc
         else:
             nc = self.model.nc
-        bboxes, scores, masses = preds[0].split((4, nd-4-nc, nc), dim=-1)
+        bboxes, scores, masses = preds[0].split((4, nd-5-nc, nc+1), dim=-1)
         masses = masses.relu()
         if not isinstance(orig_imgs, list):  # input images are a torch.Tensor, not a list
             orig_imgs = ops.convert_torch2numpy_batch(orig_imgs)[..., ::-1]
@@ -65,11 +65,15 @@ class RTDETRPredictor(BasePredictor):
         for bbox, score, mass, orig_img, img_path in zip(bboxes, scores, masses, orig_imgs, self.batch[0]):  # (300, 4)
             bbox = ops.xywh2xyxy(bbox)
             max_score, cls = score.max(-1, keepdim=True)  # (300, 1)
-            selected_mass = torch.gather(mass, dim=-1, index=cls)
+            specific_masses = mass[..., :-1]  # The first NC channels
+            agnostic_mass   = mass[..., -1:]  # The last 1 channel
+            selected_mass = torch.gather(specific_masses, dim=-1, index=cls)
+            alpha=0.5
+            final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
             idx = max_score.squeeze(-1) > self.args.conf  # (300, )
             if self.args.classes is not None:
                 idx = (cls == torch.tensor(self.args.classes, device=cls.device)).any(1) & idx
-            pred = torch.cat([bbox, max_score, cls, selected_mass], dim=-1)[idx]  # filter
+            pred = torch.cat([bbox, max_score, cls, final_mass], dim=-1)[idx]  # filter
             pred = pred[pred[:, 4].argsort(descending=True)][: self.args.max_det]
             oh, ow = orig_img.shape[:2]
             pred[..., [0, 2]] *= ow  # scale x coordinates to original width
