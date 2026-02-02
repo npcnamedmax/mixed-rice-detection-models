@@ -116,7 +116,12 @@ def non_max_suppression(
         else:  # best class only
             conf, j = cls.max(1, keepdim=True)
             filt = conf.view(-1) > conf_thres
-            x = torch.cat((box, conf, j.float(), mask, mass.gather(1, j)), 1)[filt]
+            mass_spec = mass[:, :nc]      
+            mass_ag = mass[:, nc:]    
+            
+            # Gather the best class mass, AND append the extra mass
+            x = torch.cat((box, conf, j.float(), mask, mass_spec.gather(1, j), mass_ag), 1)[filt]
+            
             if return_idxs:
                 xk = xk[filt]
 
