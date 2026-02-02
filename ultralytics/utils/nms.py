@@ -109,11 +109,13 @@ def non_max_suppression(
         box, cls, mask, mass = x.split((4, nc, nm, nc + 1), 1)
 
         if multi_label:
+            print('MULTILABEL IS TRUE')
             i, j = torch.where(cls > conf_thres)
             x = torch.cat((box[i], x[i, 4 + j, None], j[:, None].float(), mask[i], mass[i, j, None]), 1)
             if return_idxs:
                 xk = xk[i]
         else:  # best class only
+            print('MULTILABEL IS FALSE')
             conf, j = cls.max(1, keepdim=True)
             filt = conf.view(-1) > conf_thres
             mass_spec = mass[:, :nc]      
