@@ -208,3 +208,4 @@ yolo11n.pt
 weights/bestyolo11.pt
 weights/bestyolo12.pt
 weights/rtdetr.pt
+rtdetr-l.pt
