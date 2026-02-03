@@ -121,7 +121,7 @@ class DetectionPredictor(BasePredictor):
         pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
         #pred[:, -1] = pred[:, -1].relu()
         assert pred.shape[1] == 8
-        alpha = 0.5
+        alpha = 0.8
         pred[:, -2] = (alpha * pred[:, -1]) + ((1 - alpha) * pred[:, -2])
         pred[:, -2] = pred[:, -2].relu()
         pred = pred[:, :-1]

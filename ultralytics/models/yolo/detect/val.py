@@ -127,7 +127,7 @@ class DetectionValidator(BaseValidator):
         )
         for x in outputs:
             assert x.shape[1] == 8
-            alpha = 0.5
+            alpha = 0.8
             x[:, -2] = (alpha * x[:, -1]) + ((1 - alpha) * x[:, -2])
             x[:, -2] = x[:, -2].relu()
             x = x[:, :-1]

@@ -311,7 +311,7 @@ class v8DetectionLoss:
             _active_labels = target_labels[active_mask].long().unsqueeze(-1)
             
             active_mass = active_mass.gather(1, _active_labels)
-            alpha=0.5
+            alpha = 0.8
             active_mass = (alpha*active_mass_agnostic) + ((1-alpha)*active_mass)
             
 
