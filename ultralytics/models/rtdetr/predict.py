@@ -68,7 +68,7 @@ class RTDETRPredictor(BasePredictor):
             specific_masses = mass[..., :-1]  # The first NC channels
             agnostic_mass   = mass[..., -1:]  # The last 1 channel
             selected_mass = torch.gather(specific_masses, dim=-1, index=cls)
-            alpha=0.5
+            alpha=0.8
             final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
             idx = max_score.squeeze(-1) > self.args.conf  # (300, )
             if self.args.classes is not None:

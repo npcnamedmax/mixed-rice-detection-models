@@ -186,7 +186,7 @@ class RTDETRValidator(DetectionValidator):
             specific_masses = masses[i][..., :-1]  # The first NC channels
             agnostic_mass   = masses[i][..., -1]  # The last 1 channel
             selected_mass = torch.gather(specific_masses, dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
-            alpha = 0.5
+            alpha=0.8
             final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
             #selected_mass = torch.gather(masses[i], dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
             pred = torch.cat([bbox, score[..., None], cls[..., None], final_mass[..., None]], dim=-1)  # filter

@@ -176,7 +176,7 @@ class DETRLoss(nn.Module):
             specific_masses = matched_preds[..., :-1]  # The first NC channels
             agnostic_mass   = matched_preds[..., -1:]  # The last 1 channel
             selected_mass = torch.gather(specific_masses, dim=-1, index=target_class.view(-1, 1))
-            alpha=0.5
+            alpha=0.8
             final_mass = (alpha * agnostic_mass) + ((1-alpha) * selected_mass)
             #selected_preds = matched_preds.gather(dim=1, index=target_class.view(-1, 1)).squeeze(-1) 
             '''
