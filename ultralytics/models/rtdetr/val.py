@@ -158,36 +158,74 @@ class RTDETRValidator(DetectionValidator):
     def postprocess(
         self, preds: torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor]
     ) -> list[dict[str, torch.Tensor]]:
-        """Apply Non-maximum suppression to prediction outputs.
-
-        Args:
-            preds (torch.Tensor | list | tuple): Raw predictions from the model. If tensor, should have shape
-                (batch_size, num_predictions, num_classes + 4) where last dimension contains bbox coords and
-                class scores.
-
-        Returns:
-            (list[dict[str, torch.Tensor]]): List of dictionaries for each image, each containing:
-                - 'bboxes': Tensor of shape (N, 4) with bounding box coordinates
-                - 'conf': Tensor of shape (N,) with confidence scores
-                - 'cls': Tensor of shape (N,) with class indices
-        """
-        if not isinstance(preds, (list, tuple)):  # list for PyTorch inference but list[0] Tensor for export inference
+        
+        if not isinstance(preds, (list, tuple)):
             preds = [preds, None]
 
         bs, _, nd = preds[0].shape
         nc = self.nc
-        bboxes, scores, masses = preds[0].split((4, nd - 4 - nc, nc), dim=-1)
-        masses = masses.relu()
+
+        # --- DEBUG SECTION START ---
+        print(f"\n[DEBUG] RT-DETR Postprocess Check")
+        print(f"  > Input Shape: {preds[0].shape}")
+        print(f"  > Batch Size (bs): {bs}, Total Dim (nd): {nd}, Num Classes (nc): {nc}")
+        
+        expected_dim = 4 + nc + nc  # 4 Box + nc Score + nc Mass
+        if nd != expected_dim:
+            print(f"  > ⚠️ WARNING: Dimension Mismatch! Expected {expected_dim} but got {nd}.")
+            print(f"  > This suggests the model export/forward pass structure does not match the validator.")
+        else:
+            print(f"  > Dimensions look correct for (Box + Score + Mass).")
+        # --- DEBUG SECTION END ---
+
+        # The Split Logic
+        # CAUTION: If your model outputs [BBox, Mass, Score], this line will assign Mass data to 'scores' variable
+        split_sizes = (4, nd - 4 - nc, nc)
+        bboxes, scores, masses = preds[0].split(split_sizes, dim=-1)
+
+        # --- DEBUG SECTION START ---
+        print(f"  > Split Sizes Used: {split_sizes}")
+        print(f"  > 'Scores' Stats -> Min: {scores.min().item():.4f}, Max: {scores.max().item():.4f}, Mean: {scores.mean().item():.4f}")
+        print(f"  > 'Masses' Stats -> Min: {masses.min().item():.4f}, Max: {masses.max().item():.4f}, Mean: {masses.mean().item():.4f}")
+
+        if scores.max().item() > 1.0:
+            print(f"  > 🚨 CRITICAL: 'Scores' contains values > 1.0. This is suspicious.")
+            print(f"    Possible Cause 1: Split order is wrong (Variable 'scores' actually holds Mass).")
+            print(f"    Possible Cause 2: Model output is Logits, not Sigmoid.")
+        # --- DEBUG SECTION END ---
+
+        masses = masses.relu() # Ensure positivity
+        
+        # Standard Postprocessing
         bboxes *= self.args.imgsz
         outputs = [torch.zeros((0, 7), device=bboxes.device)] * bs
+        
         for i, bbox in enumerate(bboxes):  # (300, 4)
             bbox = ops.xywh2xyxy(bbox)
             score, cls = scores[i].max(-1)  # (300, )
+            
             selected_mass = torch.gather(masses[i], dim=-1, index=cls.unsqueeze(-1)).squeeze(-1)
-            pred = torch.cat([bbox, score[..., None], cls[..., None], selected_mass[..., None]], dim=-1)  # filter
-            # Sort by confidence to correctly get internal metrics
+            
+            # Filter
+            pred = torch.cat([bbox, score[..., None], cls[..., None], selected_mass[..., None]], dim=-1)
+            
+            # Sort by confidence
             pred = pred[score.argsort(descending=True)]
-            outputs[i] = pred[score > self.args.conf]
+            
+            # Apply Threshold
+            filtered_pred = pred[score > self.args.conf]
+            outputs[i] = filtered_pred
+
+            # --- DEBUG SECTION (First Image Only) ---
+            if i == 0:
+                 print(f"  > Image 0 Processing:")
+                 print(f"    - Raw Candidates: {pred.shape[0]}")
+                 print(f"    - Confidence Threshold: {self.args.conf}")
+                 print(f"    - Surviving Candidates: {filtered_pred.shape[0]}")
+                 if filtered_pred.shape[0] > 0:
+                     top = filtered_pred[0]
+                     print(f"    - Top Det: Cls={int(top[5])}, Conf={top[4]:.4f}, Mass={top[6]:.4f}")
+            # --- DEBUG SECTION END ---
 
         return [{"bboxes": x[:, :4], "conf": x[:, 4], "cls": x[:, 5], "mass": x[:, 6]} for x in outputs]
 
