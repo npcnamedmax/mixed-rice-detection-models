@@ -539,7 +539,7 @@ class Results(SimpleClass, DataExportMixin):
                 name = ("" if id is None else f"id:{id} ") + names[c]
                 val = m[-1].item()
                 mtl_val = f"{val:.2f}" 
-                label = (f"{name} {mtl_val}" if conf else name) if labels else None
+                label = (f"{name} {mtl_val}g" if conf else name) if labels else None
                 box = d.xyxyxyxy.squeeze() if is_obb else d.xyxy.squeeze()
                 annotator.box_label(
                     box,
