@@ -294,7 +294,7 @@ class v8DetectionLoss:
             active_mask = fg_mask.bool()
 
             # 1. Get local object index (0, 1, etc.)
-            local_indices = target_gt_idx[active_mask].long()
+            local_indices = target_gt_idx[active_mask].long() # target gt idx is (bs, num_total_anchors), shows target cls idx of each anchor
             
             # 2. Generate batch indices (Keep 2D to match mask shape)
             # Shape: (Batch_Size, Num_Anchors)
@@ -302,7 +302,7 @@ class v8DetectionLoss:
             active_batch_ids = batch_idx_map[active_mask]
             
            
-            max_objs = gt_bboxes.shape[1] #max number of objects detectable (total num of anchors)
+            max_objs = gt_bboxes.shape[1] #max number of objects detectable in an img
             active_indices = (active_batch_ids * max_objs) + local_indices #offset by each batch, each batch has max_objs anchors/detectable objs
             
             active_mass = pred_mass[active_mask]
