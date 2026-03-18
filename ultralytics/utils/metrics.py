@@ -876,7 +876,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
-        self.max_conf = 0
+        self.max_conf = 0.0
         
 
     @property
