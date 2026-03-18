@@ -837,7 +837,7 @@ def ap_per_class(
     p, r, f1 = p_curve[:, i], r_curve[:, i], f1_curve[:, i]  # max-F1 precision, recall, F1 values
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
-    return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values
+    return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values, x[i]
 
 
 class Metric(SimpleClass):
@@ -876,6 +876,7 @@ class Metric(SimpleClass):
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
+        self.max_conf = 0
         
 
     @property
@@ -995,8 +996,13 @@ class Metric(SimpleClass):
             self.f1_curve,
             self.px,
             self.prec_values,
+            self.max_conf
         ) = results
-
+    
+    @property 
+    def max_conff(self) -> float:
+        return self.max_conf
+    
     @property
     def curves(self) -> list:
         """Return a list of curves for accessing specific metrics curves."""
