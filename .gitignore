@@ -210,3 +210,4 @@ weights/bestyolo12.pt
 weights/rtdetr.pt
 rtdetr-l.pt
 *.pt
+test1.py
