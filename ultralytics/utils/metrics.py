@@ -837,7 +837,7 @@ def ap_per_class(
     p, r, f1 = p_curve[:, i], r_curve[:, i], f1_curve[:, i]  # max-F1 precision, recall, F1 values
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
-    return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values
+    return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values, x[i]
 
 
 class Metric(SimpleClass):
@@ -873,6 +873,7 @@ class Metric(SimpleClass):
         self.p = []  # (nc, )
         self.r = []  # (nc, )
         self.f1 = []  # (nc, )
+        self.max_conf = 0.0 # conf threshold that gives max f1 score
         self.all_ap = []  # (nc, 10)
         self.ap_class_index = []  # (nc, )
         self.nc = 0
@@ -964,7 +965,6 @@ class Metric(SimpleClass):
         w = [0.0, 0.0, 0.0, 1.0] 
         # Calculate standard mAP score
         res = (np.nan_to_num(np.array(self.mean_results())) * w).sum()
-        print("map5095????? HERE:   " , res)
         # Conditional Logic
         return res
 
@@ -995,7 +995,13 @@ class Metric(SimpleClass):
             self.f1_curve,
             self.px,
             self.prec_values,
+            self.max_conf
         ) = results
+
+    @property
+    def max_conff(self) -> float:
+        return self.max_conf
+
 
     @property
     def curves(self) -> list:
