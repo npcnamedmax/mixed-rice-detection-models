@@ -389,7 +389,9 @@ class ConfusionMatrix(DataExportMixin):
             for i in range(gt_cls.shape[0]):
                 self._append_matches("GT", batch, i)  # store GT
         is_obb = gt_bboxes.shape[1] == 5  # check if boxes contains angle for OBB
-        conf = 0.25 if conf in {None, 0.01 if is_obb else 0.001} else conf  # apply 0.25 if default val conf is passed
+        #conf = 0.25 if conf in {None, 0.01 if is_obb else 0.001} else conf  # apply 0.25 if default val conf is passed
+        #conf = 0.23 # for yolov11
+        conf = 0.75 # for yolov12
         no_pred = detections["cls"].shape[0] == 0
         if gt_cls.shape[0] == 0:  # Check if labels is empty
             if not no_pred:
@@ -786,30 +788,37 @@ def ap_per_class(
     """
     # Sort by objectness
     i = np.argsort(-conf)
-    tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
-
+    tp, conf, pred_cls = tp[i], conf[i], pred_cls[i] #tp shape is (bool val of each pred, 10 IoU level), whether the pred at idx is correct at each IoU level, with idx being idx in pred_cls, 
+                                                        #means if (5,2) in tp is true and pred_cls[5] is sausage, then prediction for sausage is correct for idxth prediction at 2nd IoU threshold.
+    print('tp shape is ', tp.shape)
+    print('pred_cls shape is ', pred_cls.shape)
     # Find unique classes
     unique_classes, nt = np.unique(target_cls, return_counts=True)
+    print('target class shape is ' , target_cls.shape)
+    print('unique_classes shape is ' , unique_classes.shape)
     nc = unique_classes.shape[0]  # number of classes, number of detections
-
+    # unqiue_classes is (14,), with idx giving the actual class id for nt[idx]
     # Create Precision-Recall curve and compute AP for each class
     x, prec_values = np.linspace(0, 1, 1000), []
 
     # Average precision, precision and recall curves
     ap, p_curve, r_curve = np.zeros((nc, tp.shape[1])), np.zeros((nc, 1000)), np.zeros((nc, 1000))
     for ci, c in enumerate(unique_classes):
-        i = pred_cls == c
-        n_l = nt[ci]  # number of labels
-        n_p = i.sum()  # number of predictions
+        i = pred_cls == c # checks which pred_cls matches with c (scalar value)
+        n_l = nt[ci]  # number of labels, tp + fn
+        n_p = i.sum()  # number of predictions, tp + fp
         if n_p == 0 or n_l == 0:
             continue
 
         # Accumulate FPs and TPs
-        fpc = (1 - tp[i]).cumsum(0)
+        fpc = (1 - tp[i]).cumsum(0) # tpc is (bool val of detections of class c, 10 IoU threshold)
         tpc = tp[i].cumsum(0)
-
+        print('tpc ' , tpc.shape)
+        print('fpc ' , fpc.shape)
+        print('n_l ', n_l)
         # Recall
         recall = tpc / (n_l + eps)  # recall curve
+        print('recall ', recall.shape)
         r_curve[ci] = np.interp(-x, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
 
         # Precision
@@ -834,9 +843,15 @@ def ap_per_class(
         plot_mc_curve(x, r_curve, save_dir / f"{prefix}R_curve.png", names, ylabel="Recall", on_plot=on_plot)
 
     i = smooth(f1_curve.mean(0), 0.1).argmax()  # max F1 index
+    print("p shape is " , p_curve.shape)
     p, r, f1 = p_curve[:, i], r_curve[:, i], f1_curve[:, i]  # max-F1 precision, recall, F1 values
+    print("i is " , i)
+    print("x[i] is " , x[i])
+    print("p is " , p)
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
+    print("tp is ", tp)
+    print("fp is ", fp)
     return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values, x[i]
 
 
