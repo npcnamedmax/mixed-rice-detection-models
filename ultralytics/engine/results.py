@@ -265,7 +265,7 @@ class Results(SimpleClass, DataExportMixin):
         self.path = path
         self.save_dir = None
         self._keys = "boxes", "masks", "probs", "keypoints", "obb"
-        self.mtl=mtl
+        self.mtl=mtl #conf, cls, mass
 
     def __getitem__(self, idx):
         """Return a Results object for a specific index of inference results.
@@ -534,9 +534,8 @@ class Results(SimpleClass, DataExportMixin):
         # Plot Detect results
         if pred_boxes is not None and show_boxes:
             for i, d in enumerate(reversed(pred_boxes)):
-                c, d_conf, id = int(d.cls), float(d.conf) if conf else None, int(d.id.item()) if d.is_track else None
-                name = ("" if id is None else f"id:{id} ") + names[c]
-                label = (f"{name} {d_conf:.2f} {self.mtl[i][-1]:.2f}g" if conf else name) if labels else None
+                c, d_conf, id, d_mass = int(d.cls), float(d.conf) if conf else None, int(d.id.item()) if d.is_track else None, float(d.mass)
+                label = (f"{names[c]} {d_conf:.2f} {d_mass:.2f}g" if conf else name) if labels else None
                 box = d.xyxyxyxy.squeeze() if is_obb else d.xyxy.squeeze()
                 annotator.box_label(
                     box,
@@ -792,11 +791,12 @@ class Results(SimpleClass, DataExportMixin):
         for i, row in enumerate(data):  # xyxy, track_id if tracking, conf, class_id
             class_id, conf = int(row.cls), round(row.conf.item(), decimals)
             box = (row.xyxyxyxy if is_obb else row.xyxy).squeeze().reshape(-1, 2).tolist()
+            mass = round(self.mtl[i][-1].item(), 2)
             xy = {}
             for j, b in enumerate(box):
                 xy[f"x{j + 1}"] = round(b[0] / w, decimals)
                 xy[f"y{j + 1}"] = round(b[1] / h, decimals)
-            result = {"name": self.names[class_id], "class": class_id, "confidence": conf, "box": xy}
+            result = {"name": self.names[class_id], "class": class_id, "confidence": conf, "box": xy, "mass": mass}
             if data.is_track:
                 result["track_id"] = int(row.id.item())  # track ID
             if self.masks:
@@ -902,10 +902,26 @@ class Boxes(BaseTensor):
             >>> print(conf_scores)
             tensor([0.9000])
         """
-        return self.data[:, -2]
+        return self.data[:, -3]
 
     @property
     def cls(self) -> torch.Tensor | np.ndarray:
+        """Return the class ID tensor representing category predictions for each bounding box.
+
+        Returns:
+            (torch.Tensor | np.ndarray): A tensor or numpy array containing the class IDs for each detection box. The
+                shape is (N,), where N is the number of boxes.
+
+        Examples:
+            >>> results = model("image.jpg")
+            >>> boxes = results[0].boxes
+            >>> class_ids = boxes.cls
+            >>> print(class_ids)  # tensor([0., 2., 1.])
+        """
+        return self.data[:, -2]
+    
+    @property
+    def mass(self) -> torch.Tensor | np.ndarray:
         """Return the class ID tensor representing category predictions for each bounding box.
 
         Returns:
