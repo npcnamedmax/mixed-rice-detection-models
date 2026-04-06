@@ -534,7 +534,8 @@ class Results(SimpleClass, DataExportMixin):
         # Plot Detect results
         if pred_boxes is not None and show_boxes:
             for i, d in enumerate(reversed(pred_boxes)):
-                c, d_conf, id, d_mass = int(d.cls), float(d.conf) if conf else None, int(d.id.item()) if d.is_track else None, float(d.mass)
+                c, d_conf, id = int(d.cls), float(d.conf) if conf else None, int(d.id.item()) if d.is_track else None
+                d_mass = float(d.mass.squeeze()[c])
                 label = (f"{names[c]} {d_conf:.2f} {d_mass:.2f}g" if conf else name) if labels else None
                 box = d.xyxyxyxy.squeeze() if is_obb else d.xyxy.squeeze()
                 annotator.box_label(
@@ -791,7 +792,8 @@ class Results(SimpleClass, DataExportMixin):
         for i, row in enumerate(data):  # xyxy, track_id if tracking, conf, class_id
             class_id, conf = int(row.cls), round(row.conf.item(), decimals)
             box = (row.xyxyxyxy if is_obb else row.xyxy).squeeze().reshape(-1, 2).tolist()
-            mass = round(self.mtl[i][-1].item(), 2)
+            print('shape is ' , row.mass.shape)
+            mass = [round(i, 2) for i in row.mass.squeeze().tolist()]
             xy = {}
             for j, b in enumerate(box):
                 xy[f"x{j + 1}"] = round(b[0] / w, decimals)
@@ -867,7 +869,7 @@ class Boxes(BaseTensor):
         if boxes.ndim == 1:
             boxes = boxes[None, :]
         n = boxes.shape[-1]
-        assert n in {6, 7}, f"expected 6 or 7 values but got {n}"  # xyxy, track_id, conf, cls
+        assert n == 20, f"expected 20 values but got {n}"  # xyxy, track_id, conf, cls
         super().__init__(boxes, orig_shape)
         self.is_track = n == 7
         self.orig_shape = orig_shape
@@ -902,7 +904,7 @@ class Boxes(BaseTensor):
             >>> print(conf_scores)
             tensor([0.9000])
         """
-        return self.data[:, -3]
+        return self.data[:, 4]
 
     @property
     def cls(self) -> torch.Tensor | np.ndarray:
@@ -918,7 +920,7 @@ class Boxes(BaseTensor):
             >>> class_ids = boxes.cls
             >>> print(class_ids)  # tensor([0., 2., 1.])
         """
-        return self.data[:, -2]
+        return self.data[:, 5]
     
     @property
     def mass(self) -> torch.Tensor | np.ndarray:
@@ -934,7 +936,7 @@ class Boxes(BaseTensor):
             >>> class_ids = boxes.cls
             >>> print(class_ids)  # tensor([0., 2., 1.])
         """
-        return self.data[:, -1]
+        return self.data[:, 6:]
 
     @property
     def id(self) -> torch.Tensor | np.ndarray | None:

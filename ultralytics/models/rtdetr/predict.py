@@ -57,7 +57,7 @@ class RTDETRPredictor(BasePredictor):
         else:
             nc = self.model.nc
         bboxes, scores, masses = preds[0].split((4, nd-4-nc, nc), dim=-1)
-
+        masses = masses.relu()
         if not isinstance(orig_imgs, list):  # input images are a torch.Tensor, not a list
             orig_imgs = ops.convert_torch2numpy_batch(orig_imgs)[..., ::-1]
 

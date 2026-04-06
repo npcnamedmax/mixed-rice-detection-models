@@ -119,6 +119,6 @@ class DetectionPredictor(BasePredictor):
             (Results): Results object containing the original image, image path, class names, and scaled bounding boxes.
         """
         pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
-        pred[:, -1] = pred[:, -1].relu()
+        pred[:, 6:] = pred[:, 6:].relu()
         mtl = pred[:, 4:]
-        return Results(orig_img, path=img_path, names=self.model.names, boxes=pred[:, :6], mtl=mtl)
+        return Results(orig_img, path=img_path, names=self.model.names, boxes=pred, mtl=mtl)
