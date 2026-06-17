@@ -211,3 +211,4 @@ baseweights/rtdetr-l.pt
 ultralytics/utils/metrics.py
 test1.py
 test2.py
+train.py
