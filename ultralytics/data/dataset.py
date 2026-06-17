@@ -353,8 +353,8 @@ class YOLOWeightedDataset(YOLODataset):
 
         self.train_mode = "train" in self.prefix
 
-        a=1.0
-        t=0.001
+        a=2.0
+        t=0.0001
         self.count_instances()
         f_i_c = self.image_counts    / len(self.labels)              # class c / total images
         f_b_c = self.instance_counts / np.sum(self.instance_counts)  # class c / total bboxes
