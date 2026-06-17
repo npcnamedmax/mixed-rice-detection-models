@@ -363,6 +363,7 @@ class BaseTrainer:
         self._setup_train()
 
         nb = len(self.train_loader)  # number of batches
+        self.class_sample = np.zeros(self.data.get("nc", 10))
         nw = max(round(self.args.warmup_epochs * nb), 100) if self.args.warmup_epochs > 0 else -1  # warmup iterations
         last_opt_step = -1
         self.epoch_time = None
@@ -402,6 +403,10 @@ class BaseTrainer:
             self.tloss = None
             for i, batch in pbar:
                 self.run_callbacks("on_train_batch_start")
+                self.class_sample += np.bincount(
+                    batch["cls"].reshape(-1).cpu().numpy().astype(int),
+                    minlength=len(self.class_sample)
+                )
                 # Warmup
                 ni = i + nb * epoch
                 if ni <= nw:
