@@ -212,3 +212,5 @@ weights/bestyolo12.pt
 weights/rtdetr.pt
 test1.py
 test2.py
+train.py
+tune.py

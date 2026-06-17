@@ -11,7 +11,7 @@ from ultralytics.data import YOLODataset
 from ultralytics.data.augment import Compose, Format, v8_transforms
 from ultralytics.models.yolo.detect import DetectionValidator
 from ultralytics.utils import colorstr, ops
-
+import numpy as np
 __all__ = ("RTDETRValidator",)  # tuple or list
 
 
@@ -50,6 +50,75 @@ class RTDETRDataset(YOLODataset):
             **kwargs (Any): Additional keyword arguments passed to the parent YOLODataset class.
         """
         super().__init__(*args, data=data, **kwargs)
+        self.train_mode = "train" in self.prefix
+
+        a=2.0
+        t=0.0001
+        self.count_instances()
+        f_i_c = self.image_counts    / len(self.labels)              # class c / total images
+        f_b_c = self.instance_counts / np.sum(self.instance_counts)  # class c / total bboxes
+        class_weights = np.exp(a*(np.sqrt(t/(np.sqrt(
+            f_i_c*f_b_c
+        )))))
+        
+
+        # Aggregation function
+        self.agg_func = np.max
+
+        self.class_weights = np.array(class_weights)
+        self.weights = self.calculate_weights()
+        self.probabilities = self.calculate_probabilities()
+    
+    def count_instances(self):
+        num_classes = len(self.data["names"])
+        self.image_counts    = np.zeros(num_classes)  # for f_i_c: images containing class c
+        self.instance_counts = np.zeros(num_classes)  # for f_b_c: total bboxes of class c
+
+        for label in self.labels:
+            cls = label['cls'].reshape(-1).astype(int)
+            seen = set()
+            for id in cls:
+                self.instance_counts[id] += 1
+                if id not in seen:
+                    self.image_counts[id] += 1  # count image once per class
+                    seen.add(id)
+
+        # Avoid division by zero
+        self.image_counts    = np.where(self.image_counts    == 0, 1, self.image_counts)
+        self.instance_counts = np.where(self.instance_counts == 0, 1, self.instance_counts)
+
+    def calculate_weights(self):
+        """
+        Calculate the aggregated weight for each label based on class weights.
+
+        Returns:
+            list: A list of aggregated weights corresponding to each label.
+        """
+        weights = []
+        for label in self.labels:
+            cls = label['cls'].reshape(-1).astype(int)
+
+            # Give a default weight to background class
+            if cls.size == 0:
+              weights.append(1)
+              continue
+
+            # Take mean of weights
+            # You can change this weight aggregation function to aggregate weights differently
+            weight = self.agg_func(self.class_weights[cls])
+            weights.append(weight)
+        return weights
+
+    def calculate_probabilities(self):
+        """
+        Calculate and store the sampling probabilities based on the weights.
+
+        Returns:
+            list: A list of sampling probabilities corresponding to each label.
+        """
+        total_weight = sum(self.weights)
+        probabilities = [w / total_weight for w in self.weights]
+        return probabilities
 
     def load_image(self, i, rect_mode=False):
         """Load one image from dataset index 'i'.
@@ -99,7 +168,16 @@ class RTDETRDataset(YOLODataset):
             )
         )
         return transforms
-
+    def __getitem__(self, index):
+        """
+        Return transformed label information based on the sampled index.
+        """
+        # Don't use for validation
+        if not self.train_mode:
+            return self.transforms(self.get_image_and_label(index))
+        else:
+            index = np.random.choice(len(self.labels), p=self.probabilities)
+            return self.transforms(self.get_image_and_label(index))
 
 class RTDETRValidator(DetectionValidator):
     """RTDETRValidator extends the DetectionValidator class to provide validation capabilities specifically tailored for
