@@ -790,12 +790,12 @@ def ap_per_class(
     i = np.argsort(-conf)
     tp, conf, pred_cls = tp[i], conf[i], pred_cls[i] #tp shape is (bool val of each pred, 10 IoU level), whether the pred at idx is correct at each IoU level, with idx being idx in pred_cls, 
                                                         #means if (5,2) in tp is true and pred_cls[5] is sausage, then prediction for sausage is correct for idxth prediction at 2nd IoU threshold.
-    print('tp shape is ', tp.shape)
-    print('pred_cls shape is ', pred_cls.shape)
+    #print('tp shape is ', tp.shape)
+    #print('pred_cls shape is ', pred_cls.shape)
     # Find unique classes
     unique_classes, nt = np.unique(target_cls, return_counts=True)
-    print('target class shape is ' , target_cls.shape)
-    print('unique_classes shape is ' , unique_classes.shape)
+    #print('target class shape is ' , target_cls.shape)
+    #print('unique_classes shape is ' , unique_classes.shape)
     nc = unique_classes.shape[0]  # number of classes, number of detections
     # unqiue_classes is (14,), with idx giving the actual class id for nt[idx]
     # Create Precision-Recall curve and compute AP for each class
@@ -818,7 +818,7 @@ def ap_per_class(
         print('n_l ', n_l) """
         # Recall
         recall = tpc / (n_l + eps)  # recall curve
-        print('recall ', recall.shape)
+        #print('recall ', recall.shape)
         r_curve[ci] = np.interp(-x, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
 
         # Precision
@@ -843,15 +843,15 @@ def ap_per_class(
         plot_mc_curve(x, r_curve, save_dir / f"{prefix}R_curve.png", names, ylabel="Recall", on_plot=on_plot)
 
     i = smooth(f1_curve.mean(0), 0.1).argmax()  # max F1 index
-    print("p shape is " , p_curve.shape)
+    #print("p shape is " , p_curve.shape)
     p, r, f1 = p_curve[:, i], r_curve[:, i], f1_curve[:, i]  # max-F1 precision, recall, F1 values
-    print("i is " , i)
-    print("x[i] is " , x[i])
-    print("p is " , p)
+    #print("i is " , i)
+    #print("x[i] is " , x[i])
+    #print("p is " , p)
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
-    print("tp is ", tp)
-    print("fp is ", fp)
+    #print("tp is ", tp)
+    #print("fp is ", fp)
     return tp, fp, p, r, f1, ap, unique_classes.astype(int), p_curve, r_curve, f1_curve, x, prec_values, x[i]
 
 
