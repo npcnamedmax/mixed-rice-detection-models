@@ -813,9 +813,9 @@ def ap_per_class(
         # Accumulate FPs and TPs
         fpc = (1 - tp[i]).cumsum(0) # tpc is (bool val of detections of class c, 10 IoU threshold)
         tpc = tp[i].cumsum(0)
-        print('tpc ' , tpc.shape)
+        """ print('tpc ' , tpc.shape)
         print('fpc ' , fpc.shape)
-        print('n_l ', n_l)
+        print('n_l ', n_l) """
         # Recall
         recall = tpc / (n_l + eps)  # recall curve
         print('recall ', recall.shape)
