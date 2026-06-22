@@ -535,7 +535,7 @@ class Results(SimpleClass, DataExportMixin):
         if pred_boxes is not None and show_boxes:
             for i, d in enumerate(reversed(pred_boxes)):
                 c, d_conf, id= int(d.cls), float(d.conf) if conf else None, int(d.id.item()) if d.is_track else None
-                d_mass = float(d.mass.squeeze())
+                d_mass = float(d.mass.squeeze()[c])
                 label = (f"{names[c]} {d_conf:.2f} {d_mass:.2f}g" if conf else name) if labels else None
                 box = d.xyxyxyxy.squeeze() if is_obb else d.xyxy.squeeze()
                 annotator.box_label(

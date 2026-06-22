@@ -83,7 +83,7 @@ def non_max_suppression(
         prediction[..., :4] = xywh2xyxy(prediction[..., :4])  # xywh to xyxy
 
     t = time.time()
-    output = [torch.zeros((0, 6 + nm + 1), device=prediction.device)] * bs
+    output = [torch.zeros((0, 6 + nm + nc), device=prediction.device)] * bs
     keepi = [torch.zeros((0, 1), device=prediction.device)] * bs  # to store the kept idxs
     for xi, (x, xk) in enumerate(zip(prediction, xinds)):  # image index, (preds, preds indices)
         # Apply constraints
