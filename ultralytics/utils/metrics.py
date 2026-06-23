@@ -390,8 +390,8 @@ class ConfusionMatrix(DataExportMixin):
                 self._append_matches("GT", batch, i)  # store GT
         is_obb = gt_bboxes.shape[1] == 5  # check if boxes contains angle for OBB
         #conf = 0.25 if conf in {None, 0.01 if is_obb else 0.001} else conf  # apply 0.25 if default val conf is passed
-        conf = 0.23 # for yolov11
-        #conf = 0.75 # for yolov12
+        conf = 0.75 # for yolov11
+        #conf=0.65 # for yolov12
         no_pred = detections["cls"].shape[0] == 0
         if gt_cls.shape[0] == 0:  # Check if labels is empty
             if not no_pred:
@@ -1158,16 +1158,6 @@ class DetMetrics(SimpleClass, DataExportMixin):
         res = (0.7 * res) + (0.6 * z)
         return res
        
-        '''
-        # Conditional Logic
-        if res < 0.7: # If mAP is below 0.5
-            return res # Return just the mAP (focus on learning detection)
-        else:
-            # If mAP is good, focus on Mass.
-            # We start with a base of 10.0 so these models are always "Better" than bad-detection models
-            # We ADD (1 - Error) because we want Error to be small.
-            return 10.0 + (1 / (1.0 + self.mass_mape))
-        '''
 
     @property
     def ap_class_index(self) -> list:
