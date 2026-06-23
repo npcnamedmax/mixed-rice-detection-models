@@ -64,8 +64,7 @@ def non_max_suppression(
         classes = torch.tensor(classes, device=prediction.device)
 
     
-
-    bs = prediction.shape[0]  # batch size (BCN, i.e. 1,84,6300)
+    bs = prediction.shape[0]  # batch size (BCN, i.e. 1,164,6300)
     nc = nc or ((prediction.shape[1] - 4) // 2)  # number of classes
     # extra = prediction.shape[1] - nc - 4  # number of extra info
     mi = 4 + nc  # mask start index
@@ -78,7 +77,7 @@ def non_max_suppression(
     time_limit = 2.0 + max_time_img * bs  # seconds to quit after
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
 
-    prediction = prediction.transpose(-1, -2)  # shape(1,84,6300) to shape(1,6300,84)
+    prediction = prediction.transpose(-1, -2)  # shape(1,164,6300) to shape(1,6300,164)
     if not rotated:
         prediction[..., :4] = xywh2xyxy(prediction[..., :4])  # xywh to xyxy
 
@@ -116,7 +115,8 @@ def non_max_suppression(
         else:  # best class only
             conf, j = cls.max(1, keepdim=True)
             filt = conf.view(-1) > conf_thres
-            x = torch.cat((box, conf, j.float(), mask, mass.gather(1, j)), 1)[filt]
+            #x = torch.cat((box, conf, j.float(), mask, mass.gather(1, j)), 1)[filt] //uncomment if want to select 1 mass
+            x = torch.cat((box, conf, j.float(), mask, mass), 1)[filt]
             if return_idxs:
                 xk = xk[filt]
 
