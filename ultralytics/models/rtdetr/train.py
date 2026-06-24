@@ -8,7 +8,7 @@ from ultralytics.models.yolo.detect import DetectionTrainer
 from ultralytics.nn.tasks import RTDETRDetectionModel
 from ultralytics.utils import RANK, colorstr
 
-from .val import RTDETRDataset, RTDETRValidator
+from .val import RTDETRDataset, RTDETRValidator, RTDETRWeightedDataset
 
 
 class RTDETRTrainer(DetectionTrainer):
@@ -68,7 +68,9 @@ class RTDETRTrainer(DetectionTrainer):
         Returns:
             (RTDETRDataset): Dataset object for the specific mode.
         """
-        return RTDETRDataset(
+        dataset = RTDETRWeightedDataset if mode == 'train' else RTDETRDataset
+        
+        return dataset(
             img_path=img_path,
             imgsz=self.args.imgsz,
             batch_size=batch,
