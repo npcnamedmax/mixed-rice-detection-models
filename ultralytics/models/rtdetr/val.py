@@ -51,6 +51,91 @@ class RTDETRDataset(YOLODataset):
         """
         super().__init__(*args, data=data, **kwargs)
 
+    def load_image(self, i, rect_mode=False):
+        """Load one image from dataset index 'i'.
+
+        Args:
+            i (int): Index of the image to load.
+            rect_mode (bool, optional): Whether to use rectangular mode for batch inference.
+
+        Returns:
+            im (np.ndarray): Loaded image as a NumPy array.
+            hw_original (tuple[int, int]): Original image dimensions in (height, width) format.
+            hw_resized (tuple[int, int]): Resized image dimensions in (height, width) format.
+
+        Examples:
+            Load an image from the dataset
+            >>> dataset = RTDETRDataset(img_path="path/to/images")
+            >>> image, hw0, hw = dataset.load_image(0)
+        """
+        return super().load_image(i=i, rect_mode=rect_mode)
+
+    def build_transforms(self, hyp=None):
+        """Build transformation pipeline for the dataset.
+
+        Args:
+            hyp (dict, optional): Hyperparameters for transformations.
+
+        Returns:
+            (Compose): Composition of transformation functions.
+        """
+        if self.augment:
+            hyp.mosaic = hyp.mosaic if self.augment and not self.rect else 0.0
+            hyp.mixup = hyp.mixup if self.augment and not self.rect else 0.0
+            hyp.cutmix = hyp.cutmix if self.augment and not self.rect else 0.0
+            transforms = v8_transforms(self, self.imgsz, hyp, stretch=True)
+        else:
+            # transforms = Compose([LetterBox(new_shape=(self.imgsz, self.imgsz), auto=False, scale_fill=True)])
+            transforms = Compose([])
+        transforms.append(
+            Format(
+                bbox_format="xywh",
+                normalize=True,
+                return_mask=self.use_segments,
+                return_keypoint=self.use_keypoints,
+                batch_idx=True,
+                mask_ratio=hyp.mask_ratio,
+                mask_overlap=hyp.overlap_mask,
+            )
+        )
+        return transforms
+
+class RTDETRWeightedDataset(YOLODataset):
+    """Real-Time DEtection and TRacking (RT-DETR) dataset class extending the base YOLODataset class.
+
+    This specialized dataset class is designed for use with the RT-DETR object detection model and is optimized for
+    real-time detection and tracking tasks.
+
+    Attributes:
+        augment (bool): Whether to apply data augmentation.
+        rect (bool): Whether to use rectangular training.
+        use_segments (bool): Whether to use segmentation masks.
+        use_keypoints (bool): Whether to use keypoint annotations.
+        imgsz (int): Target image size for training.
+
+    Methods:
+        load_image: Load one image from dataset index.
+        build_transforms: Build transformation pipeline for the dataset.
+
+    Examples:
+        Initialize an RT-DETR dataset
+        >>> dataset = RTDETRDataset(img_path="path/to/images", imgsz=640)
+        >>> image, hw0, hw = dataset.load_image(0)
+    """
+
+    def __init__(self, *args, data=None, **kwargs):
+        """Initialize the RTDETRDataset class by inheriting from the YOLODataset class.
+
+        This constructor sets up a dataset specifically optimized for the RT-DETR (Real-Time DEtection and TRacking)
+        model, building upon the base YOLODataset functionality.
+
+        Args:
+            *args (Any): Variable length argument list passed to the parent YOLODataset class.
+            data (dict | None): Dictionary containing dataset information. If None, default values will be used.
+            **kwargs (Any): Additional keyword arguments passed to the parent YOLODataset class.
+        """
+        super().__init__(*args, data=data, **kwargs)
+
         self.train_mode = "train" in self.prefix
 
         a=2.0
@@ -220,7 +305,9 @@ class RTDETRValidator(DetectionValidator):
         Returns:
             (RTDETRDataset): Dataset configured for RT-DETR validation.
         """
-        return RTDETRDataset(
+        dataset = RTDETRWeightedDataset if mode == 'train' else RTDETRDataset
+
+        return dataset(
             img_path=img_path,
             imgsz=self.args.imgsz,
             batch_size=batch,
