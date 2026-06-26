@@ -408,6 +408,7 @@ class YOLOWeightedDataset(YOLODataset):
             # You can change this weight aggregation function to aggregate weights differently
             weight = self.agg_func(self.class_weights[cls])
             weights.append(weight)
+        print("CLASS WEIGHTS IS ", weights)
         return weights
 
     def calculate_probabilities(self):
@@ -419,6 +420,7 @@ class YOLOWeightedDataset(YOLODataset):
         """
         total_weight = sum(self.weights)
         probabilities = [w / total_weight for w in self.weights]
+        print("PROBABILITIES IS ", probabilities)
         return probabilities
 
     def __getitem__(self, index):
