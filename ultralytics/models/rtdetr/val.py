@@ -379,9 +379,8 @@ class RTDETRValidator(DetectionValidator):
             
             # Sort by confidence
             pred = pred[score.argsort(descending=True)]
-            
             # Apply Threshold
-            filtered_pred = pred[score > self.args.conf]
+            filtered_pred = pred[pred[:, 4] > self.args.conf]
             outputs[i] = filtered_pred
 
             # --- DEBUG SECTION (First Image Only) ---
