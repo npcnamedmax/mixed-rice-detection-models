@@ -391,7 +391,7 @@ class ConfusionMatrix(DataExportMixin):
         is_obb = gt_bboxes.shape[1] == 5  # check if boxes contains angle for OBB
         #conf = 0.25 if conf in {None, 0.01 if is_obb else 0.001} else conf  # apply 0.25 if default val conf is passed
         #conf=0.86 #yolo11
-        conf=0.79 #yolo12
+        #conf=0.79 #yolo12
         no_pred = detections["cls"].shape[0] == 0
         if gt_cls.shape[0] == 0:  # Check if labels is empty
             if not no_pred:
