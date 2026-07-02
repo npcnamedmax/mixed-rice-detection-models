@@ -329,7 +329,7 @@ class v8DetectionLoss:
 
             # Accumulate with explicit casting
             cluster_sums.scatter_add_(0, flat_indices, flat_mass.to(dtype))
-            cluster_sq_sums.scatter_add_(0, flat_indices, (flat_mass ** 2).to(dtype))
+            cluster_sq_sums.scatter_add_(0, flat_indices, (flat_mass.to(dtype) ** 2))
             cluster_counts.scatter_add_(0, flat_indices, torch.ones_like(flat_mass, dtype=dtype)) #adds 1 to ith based on flat_indices
             #area_sums.scatter_add_(0, flat_indices, flat_areas.to(dtype)) 
             class_tracker.scatter_add_(0, flat_indices, flat_labels.to(dtype)) #add class_id to class n times, where n is number of instances of class in a batch, for each batch
