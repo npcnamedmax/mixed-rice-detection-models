@@ -381,7 +381,7 @@ class v8DetectionLoss:
         loss[1] *= self.hyp.cls
         loss[2] *= self.hyp.dfl
         loss[3] *= 0.028
-        print(self.hyp.box, self.hyp.cls, self.hyp.dfl)
+        
         x = loss[3].detach()
         var_gain = (2.1 ** -(x + 0.45)) - 0.47
         var_gain = var_gain.clamp(min=0.0, max=0.15)
