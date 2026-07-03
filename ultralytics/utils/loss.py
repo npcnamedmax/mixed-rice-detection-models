@@ -240,7 +240,8 @@ class v8DetectionLoss:
             # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
-    def __call__(self, preds, batch):
+    def _loss_components(self, preds, batch, hyps):
+        """Compute per-component weighted losses. Returns (loss[5], batch_size)."""
         loss = torch.zeros(3 + 2, device=self.device)
         feats = preds[1] if isinstance(preds, tuple) else preds
         
@@ -378,18 +379,33 @@ class v8DetectionLoss:
                 else:
                     loss[3] = 0.0
                     loss[4] = 0.0
-
-        loss[0] *= self.hyp.box
-        loss[1] *= self.hyp.cls
-        loss[2] *= self.hyp.dfl
+        print(hyps)
+        loss[0] *= hyps['box']
+        loss[1] *= hyps['cls']
+        loss[2] *= hyps['dfl']
         loss[3] *= 0.028
 
         x = loss[3].detach()
         var_gain = (2.1 ** -(x + 0.45)) - 0.47
         var_gain = var_gain.clamp(min=0.0, max=0.15)
         loss[4] *= var_gain
-        
+
+        return loss, batch_size
+
+    def __call__(self, preds, batch, hyps):
+        loss, batch_size = self._loss_components(preds, batch, hyps)
         return loss.sum() * batch_size, loss.detach()
+
+    def task_losses(self, preds, batch, hyps) -> dict[str, torch.Tensor]:
+        """Return scalar task losses (autograd-connected) for gradient-conflict diagnostics."""
+        loss, batch_size = self._loss_components(preds, batch, hyps)
+        scale = float(batch_size)
+        return {
+            "detection": (loss[0] + loss[1] + loss[2]) * scale,
+            "cls_only": loss[1] * scale,
+            "mass": (loss[3] + loss[4]) * scale,
+            "mass_l1": loss[3] * scale,
+        }
 
 class v8SegmentationLoss(v8DetectionLoss):
     """Criterion class for computing training losses for YOLOv8 segmentation."""
